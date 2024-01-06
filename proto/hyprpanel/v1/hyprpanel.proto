@@ -1,0 +1,187 @@
+syntax = "proto3";
+
+package hyprpanel.v1;
+
+import "google/protobuf/any.proto";
+import "hyprpanel/config/v1/config.proto";
+import "hyprpanel/event/v1/event.proto";
+
+enum SystrayScrollOrientation {
+  SYSTRAY_SCROLL_ORIENTATION_UNSPECIFIED = 0;
+  SYSTRAY_SCROLL_ORIENTATION_VERTICAL = 1;
+  SYSTRAY_SCROLL_ORIENTATION_HORIZONTAL = 2;
+}
+
+enum SystrayMenuEvent {
+  SYSTRAY_MENU_EVENT_UNSPECIFIED = 0;
+  SYSTRAY_MENU_EVENT_CLICKED = 1;
+  SYSTRAY_MENU_EVENT_HOVERED = 2;
+}
+
+enum NotificationClosedReason {
+  NOTIFICATION_CLOSED_REASON_UNSPECIFIED = 0;
+  NOTIFICATION_CLOSED_REASON_EXPIRED = 1;
+  NOTIFICATION_CLOSED_REASON_DISMISSED = 2;
+  NOTIFICATION_CLOSED_REASON_SIGNAL = 3;
+}
+
+message AppInfo {
+  message Action {
+    string name = 1;
+    string icon = 2;
+    string exec = 3;
+    string raw_exec = 4;
+  }
+
+  string desktop_file = 1;
+  string name = 2;
+  string icon = 3;
+  string try_exec = 4;
+  string exec = 5;
+  string raw_exec = 6;
+  string path = 7;
+  string startup_wm_class = 8;
+  bool terminal = 9;
+  repeated Action actions = 10;
+}
+
+message PanelServiceInitRequest {
+  uint32 host = 1;
+  string id = 2;
+  hyprpanel.config.v1.LogLevel log_level = 3;
+  hyprpanel.config.v1.Panel config = 4;
+  bytes stylesheet = 5;
+}
+message PanelServiceInitResponse {}
+
+message PanelServiceNotifyRequest {
+  hyprpanel.event.v1.Event event = 1;
+}
+message PanelServiceNotifyResponse {}
+
+message PanelServiceNotificationCloseRequest {
+  uint32 id = 1;
+}
+message PanelServiceNotificationCloseResponse {}
+
+message PanelServiceCloseRequest {}
+message PanelServiceCloseResponse {}
+
+service PanelService {
+  rpc Init(PanelServiceInitRequest) returns (PanelServiceInitResponse);
+  rpc Notify(PanelServiceNotifyRequest) returns (PanelServiceNotifyResponse);
+  rpc Close(PanelServiceCloseRequest) returns (PanelServiceCloseResponse);
+}
+
+message HostServiceExecRequest {
+  string command = 1;
+}
+message HostServiceExecResponse {}
+
+message HostServiceFindApplicationRequest {
+  string query = 1;
+}
+message HostServiceFindApplicationResponse {
+  AppInfo app_info = 1;
+}
+
+message HostServiceSystrayActivateRequest {
+  string bus_name = 1;
+  int32 x = 2;
+  int32 y = 3;
+}
+message HostServiceSystrayActivateResponse {}
+
+message HostServiceSystraySecondaryActivateRequest {
+  string bus_name = 1;
+  int32 x = 2;
+  int32 y = 3;
+}
+message HostServiceSystraySecondaryActivateResponse {}
+
+message HostServiceSystrayScrollRequest {
+  string bus_name = 1;
+  int32 delta = 2;
+  SystrayScrollOrientation orientation = 3;
+}
+message HostServiceSystrayScrollResponse {}
+
+message HostServiceSystrayMenuContextActivateRequest {
+  string bus_name = 1;
+  int32 x = 2;
+  int32 y = 3;
+}
+message HostServiceSystrayMenuContextActivateResponse {}
+
+message HostServiceSystrayMenuAboutToShowRequest {
+  string bus_name = 1;
+  string menu_item_id = 2;
+}
+message HostServiceSystrayMenuAboutToShowResponse {}
+
+message HostServiceSystrayMenuEventRequest {
+  string bus_name = 1;
+  int32 id = 2;
+  SystrayMenuEvent event_id = 3;
+  google.protobuf.Any data = 4;
+  uint32 timestamp = 5;
+}
+message HostServiceSystrayMenuEventResponse {}
+
+message HostServiceNotificationClosedRequest {
+  uint32 id = 1;
+  NotificationClosedReason reason = 2;
+}
+message HostServiceNotificationClosedResponse {}
+
+message HostServiceNotificationActionRequest {
+  uint32 id = 1;
+  string action_key = 2;
+}
+message HostServiceNotificationActionResponse {}
+
+message HostServiceAudioSinkVolumeAdjustRequest {
+  string id = 1;
+  hyprpanel.event.v1.Direction direction = 2;
+}
+message HostServiceAudioSinkVolumeAdjustResponse {}
+
+message HostServiceAudioSinkMuteToggleRequest {
+  string id = 1;
+}
+message HostServiceAudioSinkMuteToggleResponse {}
+
+message HostServiceAudioSourceVolumeAdjustRequest {
+  string id = 1;
+  hyprpanel.event.v1.Direction direction = 2;
+}
+message HostServiceAudioSourceVolumeAdjustResponse {}
+
+message HostServiceAudioSourceMuteToggleRequest {
+  string id = 1;
+}
+message HostServiceAudioSourceMuteToggleResponse {}
+
+message HostServiceBrightnessAdjustRequest {
+  string dev_name = 1;
+  hyprpanel.event.v1.Direction direction = 2;
+}
+message HostServiceBrightnessAdjustResponse {}
+
+service HostService {
+  rpc Exec(HostServiceExecRequest) returns (HostServiceExecResponse);
+  rpc FindApplication(HostServiceFindApplicationRequest) returns (HostServiceFindApplicationResponse);
+  rpc SystrayActivate(HostServiceSystrayActivateRequest) returns (HostServiceSystrayActivateResponse);
+  rpc SystraySecondaryActivate(HostServiceSystraySecondaryActivateRequest) returns (HostServiceSystraySecondaryActivateResponse);
+  rpc SystrayScroll(HostServiceSystrayScrollRequest) returns (HostServiceSystrayScrollResponse);
+  rpc SystrayMenuContextActivate(HostServiceSystrayMenuContextActivateRequest) returns (HostServiceSystrayMenuContextActivateResponse);
+  rpc SystrayMenuAboutToShow(HostServiceSystrayMenuAboutToShowRequest) returns (HostServiceSystrayMenuAboutToShowResponse);
+  rpc SystrayMenuEvent(HostServiceSystrayMenuEventRequest) returns (HostServiceSystrayMenuEventResponse);
+  rpc NotificationClosed(HostServiceNotificationClosedRequest) returns (HostServiceNotificationClosedResponse);
+  rpc NotificationAction(HostServiceNotificationActionRequest) returns (HostServiceNotificationActionResponse);
+  rpc AudioSinkVolumeAdjust(HostServiceAudioSinkVolumeAdjustRequest) returns (HostServiceAudioSinkVolumeAdjustResponse);
+  rpc AudioSinkMuteToggle(HostServiceAudioSinkMuteToggleRequest) returns (HostServiceAudioSinkMuteToggleResponse);
+  rpc AudioSourceVolumeAdjust(HostServiceAudioSourceVolumeAdjustRequest) returns (HostServiceAudioSourceVolumeAdjustResponse);
+  rpc AudioSourceMuteToggle(HostServiceAudioSourceMuteToggleRequest) returns (HostServiceAudioSourceMuteToggleResponse);
+  rpc BrightnessAdjust(HostServiceBrightnessAdjustRequest) returns (HostServiceBrightnessAdjustResponse);
+}

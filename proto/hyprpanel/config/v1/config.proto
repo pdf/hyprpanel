@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package hyprpanel.config.v1;
+
+import "google/protobuf/duration.proto";
+import "hyprpanel/module/v1/module.proto";
+
+enum Edge {
+  EDGE_UNSPECIFIED = 0;
+  EDGE_TOP = 1;
+  EDGE_RIGHT = 2;
+  EDGE_BOTTOM = 3;
+  EDGE_LEFT = 4;
+}
+
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_TRACE = 1;
+  LOG_LEVEL_DEBUG = 2;
+  LOG_LEVEL_INFO = 3;
+  LOG_LEVEL_WARN = 4;
+  LOG_LEVEL_ERROR = 5;
+  LOG_LEVEL_OFF = 6;
+}
+
+message Panel {
+  string id = 1; // unique identifier for this panel.
+  Edge edge = 2; // screen edge to place this panel.
+  uint32 size = 3; // either width or height in pixels, depending on orientation for screen edge.
+  string monitor = 4; // monitor to display this panel on.
+  repeated hyprpanel.module.v1.Module modules = 5; // list of modules for this panel.
+}
+
+message Config {
+  message DBUS {
+    message Notifications {
+      bool enabled = 1; // toggles the notification host functionality, required for "notifications" module.
+    }
+
+    message Systray {
+      bool enabled = 3; // toggles the StatusNotifierItem host, required for "systray" module. Must be the only SNI implementation running in the session.
+    }
+
+    message Shortcuts {
+      bool enabled = 4; // enables GlobalShortcuts support.
+    }
+
+    message Brightness {
+      bool enabled = 1; // enables brightness control functionality.
+      uint32 adjust_step_percent = 2; // percentage that brightness should change on each adjustment.
+      uint32 min_brightness = 3; // minimum brightness value.
+      bool enable_logind = 4; // set brightness via systemd-logind DBUS interface instead of direct sysfs. Requires logind session, and DBUS.enabled = true.
+      bool hud_notifications = 5; // display HUD notifications on change (requires at least one HUD module).
+    }
+
+    message Power {
+      bool enabled = 1; // enables power functionality.
+      uint32 low_percent = 2;
+      uint32 critical_percent = 3;
+      string low_command = 4;
+      string critical_command = 5;
+      bool hud_notifications = 6;
+    }
+
+    bool enabled = 1; // if false, no DBUS functionality is available.
+    google.protobuf.Duration connect_timeout = 2; // specifies the maximum time we will attempt to connect to the bus before failing (format: "20s").
+    google.protobuf.Duration connect_interval = 3; // specifies the interval that we will attempt to connect to the session bus on startup (format: "0.200s").
+
+    Notifications notifications = 4; // notifications configuration.
+    Systray systray = 5; // systray configuration.
+    Shortcuts shortcuts = 6; // shortcuts configuration.
+    Brightness brightness = 7;
+    Power power = 8;
+  }
+
+  message Audio {
+    bool enabled = 1; // if false, no Audio functionality is available.
+    uint32 volume_step_percent = 2; // percentage that volume should change on each adjustment.
+    bool volume_exceed_maximum = 3; // allow increasing volume above 100%.
+    bool hud_notifications = 4; // display HUD notifications on volume change (requires at least one HUD module).
+  }
+
+  LogLevel log_level = 1; // specifies the maximum log level for output.
+  bool log_subprocesses_to_journal = 2; // send processes spawned by e.g. taskbar launchers to the systemd journal via sytstemd-cat.
+  DBUS dbus = 3; // dbus configuration section.
+  Audio audio = 4; // audio configuration section.
+  repeated Panel panels = 6; // list of panels to display.
+}

@@ -1,0 +1,296 @@
+syntax = "proto3";
+
+package hyprpanel.event.v1;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "hyprpanel/module/v1/module.proto";
+
+enum Direction {
+  DIRECTION_UNSPECIFIED = 0;
+  DIRECTION_UP = 1;
+  DIRECTION_DOWN = 2;
+}
+
+enum PowerType {
+  POWER_TYPE_UNSPECIFIED = 0;
+  POWER_TYPE_LINE_POWER = 1;
+  POWER_TYPE_BATTERY = 2;
+  POWER_TYPE_UPS = 3;
+  POWER_TYPE_MONITOR = 4;
+  POWER_TYPE_MOUSE = 5;
+  POWER_TYPE_KEYBOARD = 6;
+  POWER_TYPE_PDA = 7;
+  POWER_TYPE_PHONE = 8;
+}
+
+enum PowerState {
+  POWER_STATE_UNSPECIFIED = 0;
+  POWER_STATE_CHARGING = 1;
+  POWER_STATE_DISCHARGING = 2;
+  POWER_STATE_EMPTY = 3;
+  POWER_STATE_FULLY_CHARGED = 4;
+  POWER_STATE_PENDING_CHARGE = 5;
+  POWER_STATE_PENDING_DISCHARGE = 6;
+}
+
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_HYPR_WORKSPACE = 1;
+  EVENT_KIND_HYPR_FOCUSEDMON = 2;
+  EVENT_KIND_HYPR_ACTIVEWINDOW = 4;
+  EVENT_KIND_HYPR_ACTIVEWINDOWV2 = 5;
+  EVENT_KIND_HYPR_FULLSCREEN = 6;
+  EVENT_KIND_HYPR_MONITORREMOVED = 7;
+  EVENT_KIND_HYPR_MONITORADDED = 8;
+  EVENT_KIND_HYPR_CREATEWORKSPACE = 9;
+  EVENT_KIND_HYPR_DESTROYWORKSPACE = 10;
+  EVENT_KIND_HYPR_MOVEWORKSPACE = 11;
+  EVENT_KIND_HYPR_RENAMEWORKSPACE = 12;
+  EVENT_KIND_HYPR_ACTIVESPECIAL = 13;
+  EVENT_KIND_HYPR_ACTIVELAYOUT = 14;
+  EVENT_KIND_HYPR_OPENWINDOW = 15;
+  EVENT_KIND_HYPR_CLOSEWINDOW = 16;
+  EVENT_KIND_HYPR_MOVEWINDOW = 17;
+  EVENT_KIND_HYPR_OPENLAYER = 18;
+  EVENT_KIND_HYPR_CLOSELAYER = 19;
+  EVENT_KIND_HYPR_SUBMAP = 20;
+  EVENT_KIND_HYPR_CHANGEFLOATINGMODE = 21;
+  EVENT_KIND_HYPR_URGENT = 22;
+  EVENT_KIND_HYPR_MINIMIZE = 23;
+  EVENT_KIND_HYPR_SCREENCAST = 24;
+  EVENT_KIND_HYPR_WINDOWTITLE = 25;
+  EVENT_KIND_HYPR_IGNOREGROUPLOCK = 26;
+  EVENT_KIND_HYPR_EVENTLOCKGROUPS = 27;
+  EVENT_KIND_DBUS_REGISTERSTATUSNOTIFIER = 28;
+  EVENT_KIND_DBUS_UNREGISTERSTATUSNOTIFIER = 29;
+  EVENT_KIND_DBUS_UPDATETITLE = 30;
+  EVENT_KIND_DBUS_UPDATETOOLTIP = 31;
+  EVENT_KIND_DBUS_UPDATEICON = 32;
+  EVENT_KIND_DBUS_UPDATEMENU = 33;
+  EVENT_KIND_DBUS_UPDATESTATUS = 34;
+  EVENT_KIND_DBUS_NOTIFICATION = 35;
+  EVENT_KIND_DBUS_CLOSENOTIFICATION = 36;
+  EVENT_KIND_DBUS_BRIGHTNESS_CHANGE = 37;
+  EVENT_KIND_DBUS_BRIGHTNESS_ADJUST = 38;
+  EVENT_KIND_AUDIO_SINK_NEW = 39;
+  EVENT_KIND_AUDIO_SINK_CHANGE = 40;
+  EVENT_KIND_AUDIO_SINK_REMOVE = 41;
+  EVENT_KIND_AUDIO_SOURCE_NEW = 42;
+  EVENT_KIND_AUDIO_SOURCE_CHANGE = 43;
+  EVENT_KIND_AUDIO_SOURCE_REMOVE = 44;
+  EVENT_KIND_AUDIO_CARD_NEW = 45;
+  EVENT_KIND_AUDIO_CARD_CHANGE = 46;
+  EVENT_KIND_AUDIO_CARD_REMOVE = 47;
+  EVENT_KIND_AUDIO_SINK_VOLUME_ADJUST = 48;
+  EVENT_KIND_AUDIO_SINK_MUTE_TOGGLE = 49;
+  EVENT_KIND_AUDIO_SOURCE_VOLUME_ADJUST = 50;
+  EVENT_KIND_AUDIO_SOURCE_MUTE_TOGGLE = 51;
+  EVENT_KIND_HUD_NOTIFY = 52;
+  EVENT_KIND_DBUS_POWER_CHANGE = 53;
+}
+
+message HyprRenameWorkspaceValue {
+  int32 id = 1;
+  string name = 2;
+}
+
+message HyprActiveWindowValue {
+  string class = 1;
+  string title = 2;
+}
+
+message HyprOpenWindowValue {
+  string address = 1;
+  string workspace_name = 2;
+  string class = 3;
+  string title = 4;
+}
+
+message StatusNotifierValue {
+  message Pixmap {
+    int32 width = 1;
+    int32 height = 2;
+    bytes data = 3;
+  }
+
+  message Tooltip {
+    string icon_name = 1;
+    Pixmap icon_pixmap = 2;
+    string title = 3;
+    string body = 4;
+  }
+  message Icon {
+    string icon_name = 1;
+    string icon_theme_path = 2;
+    Pixmap icon_pixmap = 3;
+  }
+
+  message Menu {
+    message Properties {
+      string label = 1;
+      string icon_name = 2;
+      bytes icon_data = 3;
+      int32 toggle_state = 4;
+      bool is_separator = 5;
+      bool is_parent = 6;
+      bool is_hidden = 7;
+      bool is_disabled = 8;
+      bool is_radio = 9;
+      bool is_checkbox = 10;
+    }
+
+    int32 id = 1;
+    Properties properties = 2;
+    repeated Menu children = 3;
+  }
+
+  string bus_name = 1;
+  string object_path = 2;
+  string id = 3;
+  string title = 4;
+  hyprpanel.module.v1.Systray.Status status = 5;
+  Tooltip tooltip = 6;
+  Icon icon = 7;
+  Menu menu = 8;
+  int32 menu_revision = 9;
+}
+
+message UpdateTitleValue {
+  string bus_name = 1;
+  string title = 2;
+}
+
+message UpdateTooltipValue {
+  string bus_name = 1;
+  StatusNotifierValue.Tooltip tooltip = 2;
+}
+
+message UpdateIconValue {
+  string bus_name = 1;
+  StatusNotifierValue.Icon icon = 2;
+}
+
+message UpdateStatusValue {
+  string bus_name = 1;
+  hyprpanel.module.v1.Systray.Status status = 2;
+}
+
+message UpdateMenuValue {
+  string bus_name = 1;
+  StatusNotifierValue.Menu menu = 2;
+}
+
+message NotificationValue {
+  message Hint {
+    string key = 1;
+    google.protobuf.Any value = 2;
+  }
+
+  message Action {
+    string key = 1;
+    string value = 2;
+  }
+
+  message Pixmap {
+    int32 width = 1; // Width of image in pixels
+    int32 height = 2; // Height of image in pixels
+    int32 row_stride = 3; // Distance in bytes between row starts
+    bool has_alpha = 4; // Whether the image has an alpha channel
+    int32 bits_per_sample = 5; // Must always be 8
+    int32 channels = 6; // If has_alpha is TRUE, must be 4, otherwise 3
+    bytes data = 7; // The image data, in RGB byte order
+  }
+
+  uint32 id = 1;
+  string app_name = 2;
+  uint32 replaces_id = 3;
+  string app_icon = 4;
+  string summary = 5;
+  string body = 6;
+  repeated Action actions = 7;
+  repeated Hint hints = 8;
+  google.protobuf.Duration timeout = 9;
+}
+
+message HudNotificationValue {
+  string id = 1;
+  string icon = 2;
+  bool icon_symbolic = 3;
+  string title = 4;
+  string body = 5;
+  double percent = 6;
+  double percent_max = 7;
+}
+
+message AudioSinkChangeValue {
+  string id = 1;
+  string name = 2;
+  int32 volume = 3;
+  double percent = 4;
+  double percent_max = 5;
+  bool mute = 6;
+  bool default = 7;
+}
+
+message AudioSourceChangeValue {
+  string id = 1;
+  string name = 2;
+  int32 volume = 3;
+  double percent = 4;
+  double percent_max = 5;
+  bool mute = 6;
+  bool default = 7;
+}
+
+message AudioSinkVolumeAdjust {
+  string id = 1;
+  Direction direction = 2;
+}
+
+message AudioSinkMuteToggle {
+  string id = 1;
+}
+
+message AudioSourceVolumeAdjust {
+  string id = 1;
+  Direction direction = 2;
+}
+
+message AudioSourceMuteToggle {
+  string id = 1;
+}
+
+message BrightnessChangeValue {
+  string id = 1;
+  string name = 2;
+  int32 brightness = 3;
+  int32 brightness_max = 4;
+}
+
+message BrightnessAdjustValue {
+  string dev_name = 1;
+  Direction direction = 2;
+}
+
+message PowerChangeValue {
+  string id = 1;
+  string vendor = 2;
+  string model = 3;
+  PowerType type = 4;
+  bool power_supply = 5;
+  bool online = 6;
+  google.protobuf.Duration time_to_empty = 7;
+  google.protobuf.Duration time_to_full = 8;
+  uint32 percentage = 9;
+  PowerState state = 10;
+  string icon = 11;
+  double energy = 12;
+  double energy_empty = 13;
+  double energy_full = 14;
+}
+
+message Event {
+  EventKind kind = 1;
+  google.protobuf.Any data = 2;
+}

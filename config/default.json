@@ -1,0 +1,190 @@
+{
+	"log_level": "LOG_LEVEL_INFO",
+	"log_subprocesses_to_journal": true,
+	"dbus": {
+		"enabled": true,
+		"connect_timeout": "20s",
+		"connect_interval": "0.200s",
+		"notifications": {
+			"enabled": true
+		},
+		"systray": {
+			"enabled": true
+		},
+		"shortcuts": {
+			"enabled": true
+		},
+		"brightness": {
+			"enabled": true,
+			"adjust_step_percent": 5,
+			"min_brightness": 1,
+			"enable_logind": true,
+			"hud_notifications": true
+		},
+		"power": {
+			"enabled": true,
+			"low_percent": 10,
+			"critical_percent": 5,
+			"low_command": "",
+			"critical_command": "",
+			"hud_notifications": true
+		}
+	},
+	"audio": {
+		"enabled": true,
+		"volume_step_percent": 5,
+		"volume_exceed_maximum": false,
+		"hud_notifications": true
+	},
+	"panels": [
+		{
+			"id": "panel0",
+			"edge": "EDGE_RIGHT",
+			"size": 64,
+			"monitor": "",
+			"modules": [
+				{
+					"pager": {
+						"icon_size": 12,
+						"active_monitor_only": false,
+						"scroll_wrap_workspaces": true,
+						"scroll_include_inactive": true,
+						"enable_workspace_names": false,
+						"pinned": [
+							"1",
+							"2",
+							"3",
+							"4",
+							"5",
+							"6"
+						],
+						"ignore_windows": []
+					}
+				},
+				{
+					"spacer": {
+						"size": 16,
+						"expand": false
+					}
+				},
+				{
+					"taskbar": {
+						"icon_size": 48,
+						"active_workspace_only": true,
+						"active_monitor_only": true,
+						"group_tasks": true,
+						"hide_indicators": false,
+						"expand": true,
+						"max_size": 0,
+						"pinned": []
+					}
+				},
+				{
+					"spacer": {
+						"size": 16,
+						"expand": false
+					}
+				},
+				{
+					"systray": {
+						"icon_size": 22,
+						"menu_icon_size": 22,
+						"auto_hide_statuses": [
+							"STATUS_UNSPECIFIED",
+							"STATUS_PASSIVE",
+							"STATUS_ACTIVE"
+						],
+						"auto_hide_delay": "4s",
+						"pinned": [
+							"nm-applet",
+							"chrome_status_icon_1"
+						],
+						"modules": [
+							{
+								"power": {
+									"icon_size": 22,
+									"icon_symbolic": true
+								}
+							}
+						]
+					}
+				},
+				{
+					"notifications": {
+						"icon_size": 24,
+						"notification_icon_size": 48,
+						"default_timeout": "7s",
+						"position": "POSITION_TOP_RIGHT",
+						"margin": 24,
+						"persistent": []
+					}
+				},
+				{
+					"hud": {
+						"notification_icon_size": 64,
+						"timeout": "2s",
+						"position": "POSITION_BOTTOM",
+						"margin": 256
+					}
+				},
+				{
+					"spacer": {
+						"size": 16,
+						"expand": false
+					}
+				},
+				{
+					"audio": {
+						"icon_size": 32,
+						"icon_symbolic": true,
+						"command_mixer": "pavucontrol"
+					}
+				},
+				{
+					"spacer": {
+						"size": 16,
+						"expand": false
+					}
+				},
+				{
+					"clock": {
+						"time_format": "15:04",
+						"date_format": "2006-01-02",
+						"tooltip_time_format": "15:04",
+						"tooltip_date_format": "Mon, 02 Jan 2006 MST",
+						"additional_regions": [
+							"America/Los_Angeles",
+							"America/Chicago",
+							"America/New_York",
+							"Europe/London"
+						]
+					}
+				},
+				{
+					"spacer": {
+						"size": 16,
+						"expand": false
+					}
+				},
+				{
+					"session": {
+						"icon_size": 48,
+						"icon_symbolic": true,
+						"overlay_icon_size": 96,
+						"overlay_icon_symbolic": true,
+						"command_logout": "loginctl terminate-session $XDG_SESSION_ID",
+						"command_reboot": "systemctl reboot",
+						"command_suspend": "systemctl suspend",
+						"command_shutdown": "systemctl poweroff"
+					}
+				},
+				{
+					"spacer": {
+						"size": 16,
+						"expand": false
+					}
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package hyprpanel.module.v1;
+
+import "google/protobuf/duration.proto";
+
+enum Position {
+  POSITION_UNSPECIFIED = 0;
+  POSITION_TOP_LEFT = 1;
+  POSITION_TOP = 2;
+  POSITION_TOP_RIGHT = 3;
+  POSITION_RIGHT = 4;
+  POSITION_BOTTOM_RIGHT = 5;
+  POSITION_BOTTOM = 6;
+  POSITION_BOTTOM_LEFT = 7;
+  POSITION_LEFT = 8;
+  POSITION_CENTER = 9;
+}
+
+message Pager {
+  uint32 icon_size = 1; // size in pixels for pager window preview application icons.
+  bool active_monitor_only = 2; // show only workspaces from the monitor the panel is running on.
+  bool scroll_wrap_workspaces = 3; // when switching workspaces via mouse scroll, wrap to start/end on over-scroll.
+  bool scroll_include_inactive = 4; // when scrolling workspaces, include inactive workspaces
+  bool enable_workspace_names = 5; // display workspace name labels.
+  repeated string pinned = 6; // list of workspaces names that will always be included in the pager, regardless of activation state. Unfortunately due to limitations in the Hyprland API, workspace names and IDs must match for this to work currently.
+  repeated string ignore_windows = 7; // list of window classes that will be excluded from preview on the pager.
+}
+
+message Taskbar {
+  uint32 icon_size = 1; // size in pixels for task icons.
+  bool active_workspace_only = 2; // show only tasks from the current workspace.
+  bool active_monitor_only = 3; // show only tasks from the monitor the panel is running on.
+  bool group_tasks = 4; // group tasks for the same application into a single icon. Scroll wheel cycles tasks.
+  bool hide_indicators = 5; // if you're not using pinned tasks, you may wish to hide the running task indicators.
+  bool expand = 6; // expand this module to fill available space in the panel.
+  uint32 max_size = 7; // maximum size in pixels for this module. Zero means no limit.
+  repeated string pinned = 8; // list of window classes that should always be displayed on the taskbar. Allows the taskbar to act as a launcher.
+}
+
+message Systray {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_PASSIVE = 1;
+    STATUS_ACTIVE = 2;
+    STATUS_NEEDS_ATTENTION = 3;
+  }
+
+  uint32 icon_size = 1; // size in pixels for icons in the systray.
+  uint32 menu_icon_size = 2; // size in pixels for menu icons. Currently unused because GNOME developers hate user/developer choice.
+  repeated Status auto_hide_statuses = 3; // list of statuses that should be auto-hidden.
+  google.protobuf.Duration auto_hide_delay = 4; // delay before new (or status-changed) icons are auto-hidden (format "4s", zero to disable).
+  repeated string pinned = 6; // list of SNI IDs that should never be hidden. There's no convention for ID values - if you want to collect IDs, start hyprpanel with LOG_LEVEL_DEBUG and look for SNI registration events.
+  repeated SystrayModule modules = 7; // list of modules to dislpay in systray. Currently supported modules: ["audio", "power"]
+}
+
+message Notifications {
+  uint32 icon_size = 1; // size in pixels for the panel notification icon. Currently unused as notification history is unimplemented.
+  uint32 notification_icon_size = 2; //size in pixels for icons in notifications.
+  google.protobuf.Duration default_timeout = 3; // delay before notifications are hidden, if the notification does not specify a timemout (format: "7s").
+  Position position = 4; // screen position to display notifications.
+  uint32 margin = 5; // space in pixels between notifications.
+  repeated string persistent = 6; // list of application names to retain notification history for. Currently unused as notification history is unimplemented.
+}
+
+message Hud {
+  uint32 notification_icon_size = 1; //size in pixels for icons in notifications.
+  google.protobuf.Duration timeout = 2; // delay before notifications are hidden (format: "7s").
+  Position position = 3; // screen position to display notifications.
+  uint32 margin = 4; // space in pixels between notifications.
+}
+
+message Clock {
+  string time_format = 1; // Go time layout string for panel time display formatting, see https://pkg.go.dev/time#pkg-constants for details.
+  string date_format = 2; // Go time layout string for panel date display formatting, see https://pkg.go.dev/time#pkg-constants for details.
+  string tooltip_time_format = 3; // Go time layout string for tooltip time display formatting, see https://pkg.go.dev/time#pkg-constants for details.
+  string tooltip_date_format = 4; // Go time layout string for tooltip time display formatting, see https://pkg.go.dev/time#pkg-constants for details.
+  repeated string additional_regions = 5; // list of addtional regions to display in the tooltip.
+}
+
+message Audio {
+  uint32 icon_size = 1; // size in pixels for panel icon.
+  bool icon_symbolic = 2; // display symbolic or coloured icon in panel.
+  string command_mixer = 3; // command to execute on mixer button.
+}
+
+message Power {
+  uint32 icon_size = 1; // size in pixels for panel icon.
+  bool icon_symbolic = 2; // display symbolic or coloured icon in panel.
+}
+
+message Session {
+  uint32 icon_size = 1; // size in pixels for panel icon.
+  bool icon_symbolic = 2; // display symbolic or coloured icon in panel.
+  uint32 overlay_icon_size = 3; // size in pixels for overlay popup icons.
+  bool overlay_icon_symbolic = 4; // display symbolic or coloured icons in overlay popup.
+  string command_logout = 5; // command that will be executed for logout action, empty disabled the button.
+  string command_reboot = 6; // command that will be executed for reboot action, empty disabled the button.
+  string command_suspend = 7; // command that will be executed for suspend action, empty disabled the button.
+  string command_shutdown = 8; // command that will be executed for shutdown action, empty disabled the button.
+}
+
+message Spacer {
+  uint32 size = 1; // size in pixels for this spacer.
+  bool expand = 2; // expand to fill available space.
+}
+
+message SystrayModule {
+  oneof kind {
+    Audio audio = 1;
+    Power power = 2;
+  }
+}
+
+message Module {
+  oneof kind {
+    Pager pager = 1;
+    Taskbar taskbar = 2;
+    Systray systray = 3;
+    Notifications notifications = 4;
+    Hud hud = 5;
+    Audio audio = 6;
+    Power power = 7;
+    Clock clock = 8;
+    Session session = 9;
+    Spacer spacer = 10;
+  }
+}

@@ -1,0 +1,3 @@
+.vscode/
+./cmd/hyprpanel/hyprpanel
+./cmd/hyprpanel-client/hyprpanel-client

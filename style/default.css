@@ -1,0 +1,200 @@
+/*
+ * GTK doesn't support CSS vars, so use their syntax
+ */
+@define-color Highlight rgba(107, 82, 166, 1.0);
+@define-color Indicator rgba(240, 240, 240, 0.5);
+@define-color PanelBackground rgba(16, 16, 16, 0.8);
+@define-color ModuleBackground rgba(0, 0, 0, 0.0);
+@define-color NotificationBackground rgba(32, 32, 32, 1.0);
+@define-color Border rgba(64, 64, 64, 0.4);
+
+flowbox,
+flowboxchild {
+	padding: 0;
+}
+
+#panel {
+	background-color: @PanelBackground;
+}
+
+#panel.top {
+	border-bottom: @Border 1px solid;
+}
+
+#panel.right {
+	border-left: @Border 1px solid;
+}
+
+#panel.bottom {
+	border-top: @Border 1px solid;
+}
+
+#panel.left {
+	border-right: @Border 1px solid;
+}
+
+.module {
+	background-color: @ModuleBackground;
+}
+
+.top .module {
+	border-radius: 0 0 8px 8px;
+}
+
+.right .module {
+	border-radius: 8px 0 0 8px;
+}
+
+.bottom .module {
+	border-radius: 8px 8px 0 0;
+}
+
+.left .module {
+	border-radius: 0 8px 8px 0;
+}
+
+#pager .workspace {
+	background-color: alpha(@ModuleBackground, 0.3);
+	border: @Border 1px solid;
+	border-radius: 4px;
+}
+
+#pager .workspace.live {
+	background-color: alpha(@Highlight, 0.2);
+}
+
+#pager .workspace.active {
+	border: alpha(@Highlight, 0.8) 1px solid;
+}
+
+#pager .workspace .workspaceLabel {
+	background-color: alpha(@ModuleBackground, 0.8);
+	font-size: 10px;
+}
+
+#pager .workspace .client {
+	border: alpha(@Highlight, 0.4) 1px solid;
+	background-color: alpha(@Highlight, 0.3);
+	border-radius: 4px;
+}
+
+#pager .workspace .client.active {
+	border: alpha(@Highlight, 0.9) 1px solid;
+	background-color: alpha(@Highlight, 0.7);
+}
+
+#taskbar .client {
+	border: rgba(0, 0, 0, 0) 1px solid;
+	border-radius: 4px;
+}
+
+#taskbar .client.hover {
+	border: alpha(@Highlight, 0.3) 1px solid;
+	background-color: alpha(@Highlight, 0.3);
+}
+
+#taskbar .client.active {
+	border: alpha(@Highlight, 0.6) 1px solid;
+	background-color: alpha(@Highlight, 0.6);
+}
+
+/* Text sizing in GTK sucks, let the user deal with it */
+#clock #clockTime {
+	font-size: 1.2rem;
+	font-weight: 500;
+}
+
+#clock #clockDate {
+	font-size: 0.6rem;
+}
+
+#sessionOverlay {
+	background-color: alpha(@PanelBackground, 0.7);
+	font-size: 2rem;
+}
+
+#sessionOverlay button {
+	border-radius: 20px;
+}
+
+#spacer {
+	background-color: rgba(0, 0, 0, 0);
+}
+
+#taskbar .indicator {
+	border: lighter(alpha(@Indicator, 0.9)) 1px solid;
+	border-radius: 2px;
+	background-color: @Indicator;
+}
+
+#notificationsOverlay {
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.notification {
+	border: @Border 1px solid;
+	border-width: 2px;
+	background-color: alpha(@NotificationBackground, 0.7);
+	border-radius: 16px;
+	transition: background-color 300ms ease-in-out;
+}
+
+.notification.hover {
+	background-color: @NotificationBackground;
+	transition: background-color 300ms ease-in-out;
+}
+
+.notification .notificationIcon {
+	margin: 8px 0px 8px 8px;
+}
+
+.notification .notificationSummary {
+	margin: 8px 12px 0px 12px;
+}
+
+.notification .notificationBody {
+	margin: 8px 12px 12px 12px;
+}
+
+.notification button {
+	border-radius: 0;
+	border: 0;
+}
+
+.notification .notificationActions button:first-child {
+	border-bottom-left-radius: 16px;
+}
+
+.notification .notificationActions button:last-child {
+	border-bottom-right-radius: 16px;
+}
+
+#hudOverlay {
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.hudNotification {
+	border: @Border 1px solid;
+	border-width: 2px;
+	background-color: alpha(@NotificationBackground, 0.7);
+	border-radius: 16px;
+	transition: background-color 300ms ease-in-out;
+}
+
+.hudNotification .hudIcon {
+	margin: 16px;
+}
+
+.hudNotification .hudTitle {
+	margin: 0px 12px 0px 12px;
+}
+
+.hudNotification .hudBody {
+	margin: 8px 12px 16px 12px;
+}
+
+.hudNotification .hudPercent {
+	margin: 0px 12px 16px 12px;
+	font-size: 2rem;
+}
+

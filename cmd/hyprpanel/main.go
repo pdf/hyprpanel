@@ -1,3 +1,4 @@
+// Package main provides the hyprpanel host binary
 package main
 
 import (
@@ -59,10 +60,10 @@ func main() {
 		fmt.Printf("%s\n", ffhelp.Flags(fs))
 		if errors.Is(err, ff.ErrHelp) {
 			os.Exit(0)
-		} else {
-			fmt.Printf("err=%v\n", err)
-			os.Exit(1)
 		}
+
+		fmt.Printf("err=%v\n", err)
+		os.Exit(1)
 	}
 
 	if *version {

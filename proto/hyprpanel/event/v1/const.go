@@ -1,7 +1,10 @@
 package eventv1
 
 const (
-	AudioDefaultSink   = `@DEFAULT_SINK@`
+	// AudioDefaultSink constant.
+	AudioDefaultSink = `@DEFAULT_SINK@`
+	// AudioDefaultSource constant.
 	AudioDefaultSource = `@DEFAULT_SOURCE@`
-	PowerDefaultId     = `Battery`
+	// PowerDefaultID constant.
+	PowerDefaultID = `Battery`
 )

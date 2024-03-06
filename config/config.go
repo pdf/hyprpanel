@@ -1,3 +1,4 @@
+// Package config handles config loading.
 package config
 
 import (
@@ -12,6 +13,7 @@ import (
 //go:embed default.json
 var defaultConfig []byte
 
+// Default returns the default configuration values.
 func Default() (*configv1.Config, error) {
 	c := &configv1.Config{}
 	if err := protojson.Unmarshal(defaultConfig, c); err != nil {
@@ -21,6 +23,7 @@ func Default() (*configv1.Config, error) {
 	return c, nil
 }
 
+// Load and parse a configuration file from disk.
 func Load(filePath string) (*configv1.Config, error) {
 	f, err := os.Open(filePath)
 	if err != nil {

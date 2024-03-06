@@ -4,7 +4,6 @@ import (
 	"math"
 
 	"github.com/jwijenbergh/puregotk/v4/gdk"
-	"github.com/jwijenbergh/puregotk/v4/glib"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	gtk4layershell "github.com/pdf/hyprpanel/internal/gtk4-layer-shell"
 	modulev1 "github.com/pdf/hyprpanel/proto/hyprpanel/module/v1"
@@ -71,7 +70,7 @@ func (s *session) build(container *gtk.Box) error {
 		}
 		logoutButton.ConnectClicked(&logoutCb)
 		s.AddRef(func() {
-			glib.UnrefCallback(&logoutCb)
+			unrefCallback(&logoutCb)
 		})
 		overlayInner.Append(&logout.Widget)
 	}
@@ -101,7 +100,7 @@ func (s *session) build(container *gtk.Box) error {
 		}
 		rebootButton.ConnectClicked(&rebootCb)
 		s.AddRef(func() {
-			glib.UnrefCallback(&rebootCb)
+			unrefCallback(&rebootCb)
 		})
 		overlayInner.Append(&reboot.Widget)
 	}
@@ -131,7 +130,7 @@ func (s *session) build(container *gtk.Box) error {
 		}
 		suspendButton.ConnectClicked(&suspendCb)
 		s.AddRef(func() {
-			glib.UnrefCallback(&suspendCb)
+			unrefCallback(&suspendCb)
 		})
 		overlayInner.Append(&suspend.Widget)
 	}
@@ -161,7 +160,7 @@ func (s *session) build(container *gtk.Box) error {
 		}
 		shutdownButton.ConnectClicked(&shutdownCb)
 		s.AddRef(func() {
-			glib.UnrefCallback(&shutdownCb)
+			unrefCallback(&shutdownCb)
 		})
 		overlayInner.Append(&shutdown.Widget)
 	}
@@ -177,7 +176,7 @@ func (s *session) build(container *gtk.Box) error {
 	overlayClickController.ConnectReleased(&overlayClickCb)
 	s.overlay.AddController(&overlayClickController.EventController)
 	s.AddRef(func() {
-		glib.UnrefCallback(&overlayClickCb)
+		unrefCallback(&overlayClickCb)
 	})
 
 	overlayKeyController := gtk.NewEventControllerKey()
@@ -189,7 +188,7 @@ func (s *session) build(container *gtk.Box) error {
 	overlayKeyController.ConnectKeyReleased(&overlayKeyCb)
 	s.overlay.AddController(&overlayKeyController.EventController)
 	s.AddRef(func() {
-		glib.UnrefCallback(&overlayKeyCb)
+		unrefCallback(&overlayKeyCb)
 	})
 
 	buttonClickController := gtk.NewGestureClick()
@@ -201,7 +200,7 @@ func (s *session) build(container *gtk.Box) error {
 	buttonClickController.ConnectReleased(&buttonClickCb)
 	s.container.AddController(&buttonClickController.EventController)
 	s.AddRef(func() {
-		glib.UnrefCallback(&buttonClickCb)
+		unrefCallback(&buttonClickCb)
 	})
 
 	container.Append(&s.container.Widget)

@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// PanelGRPCClient panel plugin client implementation.
 type PanelGRPCClient struct {
 	broker *plugin.GRPCBroker
 	client hyprpanelv1.PanelServiceClient
@@ -19,6 +20,7 @@ type PanelGRPCClient struct {
 	ctx    context.Context
 }
 
+// Init implementation.
 func (c *PanelGRPCClient) Init(h Host, id string, loglevel configv1.LogLevel, config *configv1.Panel, stylesheet []byte) error {
 	host := &HostGRPCServer{Impl: h}
 	serverFunc := func(opts []grpc.ServerOption) *grpc.Server {
@@ -32,7 +34,7 @@ func (c *PanelGRPCClient) Init(h Host, id string, loglevel configv1.LogLevel, co
 	hostRef := c.broker.NextId()
 	go c.broker.AcceptAndServe(hostRef, serverFunc)
 
-	c.client.Init(context.Background(), &hyprpanelv1.PanelServiceInitRequest{
+	_, err := c.client.Init(context.Background(), &hyprpanelv1.PanelServiceInitRequest{
 		Host:       hostRef,
 		Id:         id,
 		LogLevel:   loglevel,
@@ -40,22 +42,26 @@ func (c *PanelGRPCClient) Init(h Host, id string, loglevel configv1.LogLevel, co
 		Stylesheet: stylesheet,
 	})
 
-	return nil
+	return err
 }
 
+// Notify implementation.
 func (c *PanelGRPCClient) Notify(evt *eventv1.Event) {
-	c.client.Notify(context.Background(), &hyprpanelv1.PanelServiceNotifyRequest{Event: evt})
+	_, _ = c.client.Notify(context.Background(), &hyprpanelv1.PanelServiceNotifyRequest{Event: evt})
 }
 
+// Context implementation.
 func (c *PanelGRPCClient) Context() context.Context {
 	return c.ctx
 }
 
+// Close implementation.
 func (c *PanelGRPCClient) Close() {
 	defer c.server.Stop()
 	c.client.Close(context.Background(), &hyprpanelv1.PanelServiceCloseRequest{})
 }
 
+// PanelGRPCServer panel plugin server implementation.
 type PanelGRPCServer struct {
 	hyprpanelv1.UnimplementedPanelServiceServer
 	Impl Panel
@@ -64,7 +70,8 @@ type PanelGRPCServer struct {
 	conn   *grpc.ClientConn
 }
 
-func (s *PanelGRPCServer) Init(ctx context.Context, req *hyprpanelv1.PanelServiceInitRequest) (*hyprpanelv1.PanelServiceInitResponse, error) {
+// Init implementation.
+func (s *PanelGRPCServer) Init(_ context.Context, req *hyprpanelv1.PanelServiceInitRequest) (*hyprpanelv1.PanelServiceInitResponse, error) {
 	var err error
 	s.conn, err = s.broker.Dial(req.Host)
 	if err != nil {
@@ -79,13 +86,15 @@ func (s *PanelGRPCServer) Init(ctx context.Context, req *hyprpanelv1.PanelServic
 	return &hyprpanelv1.PanelServiceInitResponse{}, nil
 }
 
-func (s *PanelGRPCServer) Notify(ctx context.Context, req *hyprpanelv1.PanelServiceNotifyRequest) (*hyprpanelv1.PanelServiceNotifyResponse, error) {
+// Notify implementation.
+func (s *PanelGRPCServer) Notify(_ context.Context, req *hyprpanelv1.PanelServiceNotifyRequest) (*hyprpanelv1.PanelServiceNotifyResponse, error) {
 	s.Impl.Notify(req.Event)
 
 	return &hyprpanelv1.PanelServiceNotifyResponse{}, nil
 }
 
-func (s *PanelGRPCServer) Close(ctx context.Context, req *hyprpanelv1.PanelServiceCloseRequest) (*hyprpanelv1.PanelServiceCloseResponse, error) {
+// Close implmenetation.
+func (s *PanelGRPCServer) Close(_ context.Context, _ *hyprpanelv1.PanelServiceCloseRequest) (*hyprpanelv1.PanelServiceCloseResponse, error) {
 	s.Impl.Close()
 	if err := s.conn.Close(); err != nil {
 		return &hyprpanelv1.PanelServiceCloseResponse{}, err
@@ -94,10 +103,12 @@ func (s *PanelGRPCServer) Close(ctx context.Context, req *hyprpanelv1.PanelServi
 	return &hyprpanelv1.PanelServiceCloseResponse{}, nil
 }
 
+// HostGRPCClient plugin host client implementation.
 type HostGRPCClient struct {
 	client hyprpanelv1.HostServiceClient
 }
 
+// Exec implmenetation.
 func (c *HostGRPCClient) Exec(command string) error {
 	_, err := c.client.Exec(context.Background(), &hyprpanelv1.HostServiceExecRequest{
 		Command: command,
@@ -105,6 +116,7 @@ func (c *HostGRPCClient) Exec(command string) error {
 	return err
 }
 
+// FindApplication implementation.
 func (c *HostGRPCClient) FindApplication(query string) (*hyprpanelv1.AppInfo, error) {
 	response, err := c.client.FindApplication(context.Background(), &hyprpanelv1.HostServiceFindApplicationRequest{
 		Query: query,
@@ -115,6 +127,7 @@ func (c *HostGRPCClient) FindApplication(query string) (*hyprpanelv1.AppInfo, er
 	return response.AppInfo, nil
 }
 
+// SystrayActivate implementation.
 func (c *HostGRPCClient) SystrayActivate(busName string, x, y int32) error {
 	_, err := c.client.SystrayActivate(context.Background(), &hyprpanelv1.HostServiceSystrayActivateRequest{
 		BusName: busName,
@@ -124,6 +137,7 @@ func (c *HostGRPCClient) SystrayActivate(busName string, x, y int32) error {
 	return err
 }
 
+// SystraySecondaryActivate implmenetation.
 func (c *HostGRPCClient) SystraySecondaryActivate(busName string, x, y int32) error {
 	_, err := c.client.SystraySecondaryActivate(context.Background(), &hyprpanelv1.HostServiceSystraySecondaryActivateRequest{
 		BusName: busName,
@@ -133,6 +147,7 @@ func (c *HostGRPCClient) SystraySecondaryActivate(busName string, x, y int32) er
 	return err
 }
 
+// SystrayScroll implementation.
 func (c *HostGRPCClient) SystrayScroll(busName string, delta int32, orientation hyprpanelv1.SystrayScrollOrientation) error {
 	_, err := c.client.SystrayScroll(context.Background(), &hyprpanelv1.HostServiceSystrayScrollRequest{
 		BusName:     busName,
@@ -142,6 +157,7 @@ func (c *HostGRPCClient) SystrayScroll(busName string, delta int32, orientation 
 	return err
 }
 
+// SystrayMenuContextActivate implementation.
 func (c *HostGRPCClient) SystrayMenuContextActivate(busName string, x, y int32) error {
 	_, err := c.client.SystrayMenuContextActivate(context.Background(), &hyprpanelv1.HostServiceSystrayMenuContextActivateRequest{
 		BusName: busName,
@@ -151,6 +167,7 @@ func (c *HostGRPCClient) SystrayMenuContextActivate(busName string, x, y int32) 
 	return err
 }
 
+// SystrayMenuAboutToShow implementation.
 func (c *HostGRPCClient) SystrayMenuAboutToShow(busName string, menuItemID string) error {
 	_, err := c.client.SystrayMenuAboutToShow(context.Background(), &hyprpanelv1.HostServiceSystrayMenuAboutToShowRequest{
 		BusName:    busName,
@@ -159,18 +176,20 @@ func (c *HostGRPCClient) SystrayMenuAboutToShow(busName string, menuItemID strin
 	return err
 }
 
-func (c *HostGRPCClient) SystrayMenuEvent(busName string, id int32, eventId hyprpanelv1.SystrayMenuEvent, data any, timestamp time.Time) error {
+// SystrayMenuEvent implementation.
+func (c *HostGRPCClient) SystrayMenuEvent(busName string, id int32, eventID hyprpanelv1.SystrayMenuEvent, _ any, timestamp time.Time) error {
 	// TODO: Implement data field? Currently unused
 	_, err := c.client.SystrayMenuEvent(context.Background(), &hyprpanelv1.HostServiceSystrayMenuEventRequest{
 		BusName:   busName,
 		Id:        id,
-		EventId:   eventId,
+		EventId:   eventID,
 		Data:      nil,
 		Timestamp: uint32(timestamp.Unix()),
 	})
 	return err
 }
 
+// NotificationClosed implementation.
 func (c *HostGRPCClient) NotificationClosed(id uint32, reason hyprpanelv1.NotificationClosedReason) error {
 	_, err := c.client.NotificationClosed(context.Background(), &hyprpanelv1.HostServiceNotificationClosedRequest{
 		Id:     id,
@@ -179,6 +198,7 @@ func (c *HostGRPCClient) NotificationClosed(id uint32, reason hyprpanelv1.Notifi
 	return err
 }
 
+// NotificationAction implementation.
 func (c *HostGRPCClient) NotificationAction(id uint32, actionKey string) error {
 	_, err := c.client.NotificationAction(context.Background(), &hyprpanelv1.HostServiceNotificationActionRequest{
 		Id:        id,
@@ -187,6 +207,7 @@ func (c *HostGRPCClient) NotificationAction(id uint32, actionKey string) error {
 	return err
 }
 
+// AudioSinkVolumeAdjust implementation.
 func (c *HostGRPCClient) AudioSinkVolumeAdjust(id string, direction eventv1.Direction) error {
 	_, err := c.client.AudioSinkVolumeAdjust(context.Background(), &hyprpanelv1.HostServiceAudioSinkVolumeAdjustRequest{
 		Id:        id,
@@ -195,6 +216,7 @@ func (c *HostGRPCClient) AudioSinkVolumeAdjust(id string, direction eventv1.Dire
 	return err
 }
 
+// AudioSinkMuteToggle implementation.
 func (c *HostGRPCClient) AudioSinkMuteToggle(id string) error {
 	_, err := c.client.AudioSinkMuteToggle(context.Background(), &hyprpanelv1.HostServiceAudioSinkMuteToggleRequest{
 		Id: id,
@@ -202,6 +224,7 @@ func (c *HostGRPCClient) AudioSinkMuteToggle(id string) error {
 	return err
 }
 
+// AudioSourceVolumeAdjust implementation.
 func (c *HostGRPCClient) AudioSourceVolumeAdjust(id string, direction eventv1.Direction) error {
 	_, err := c.client.AudioSourceVolumeAdjust(context.Background(), &hyprpanelv1.HostServiceAudioSourceVolumeAdjustRequest{
 		Id:        id,
@@ -210,6 +233,7 @@ func (c *HostGRPCClient) AudioSourceVolumeAdjust(id string, direction eventv1.Di
 	return err
 }
 
+// AudioSourceMuteToggle implementation.
 func (c *HostGRPCClient) AudioSourceMuteToggle(id string) error {
 	_, err := c.client.AudioSourceMuteToggle(context.Background(), &hyprpanelv1.HostServiceAudioSourceMuteToggleRequest{
 		Id: id,
@@ -217,6 +241,7 @@ func (c *HostGRPCClient) AudioSourceMuteToggle(id string) error {
 	return err
 }
 
+// BrightnessAdjust implementation.
 func (c *HostGRPCClient) BrightnessAdjust(devName string, direction eventv1.Direction) error {
 	_, err := c.client.BrightnessAdjust(context.Background(), &hyprpanelv1.HostServiceBrightnessAdjustRequest{
 		DevName:   devName,
@@ -225,12 +250,14 @@ func (c *HostGRPCClient) BrightnessAdjust(devName string, direction eventv1.Dire
 	return err
 }
 
+// HostGRPCServer plugin host implementation.
 type HostGRPCServer struct {
 	hyprpanelv1.UnimplementedHostServiceServer
 	Impl Host
 }
 
-func (s *HostGRPCServer) Exec(ctx context.Context, req *hyprpanelv1.HostServiceExecRequest) (*hyprpanelv1.HostServiceExecResponse, error) {
+// Exec implementation.
+func (s *HostGRPCServer) Exec(_ context.Context, req *hyprpanelv1.HostServiceExecRequest) (*hyprpanelv1.HostServiceExecResponse, error) {
 	err := s.Impl.Exec(req.Command)
 	if err != nil {
 		return &hyprpanelv1.HostServiceExecResponse{}, err
@@ -239,7 +266,8 @@ func (s *HostGRPCServer) Exec(ctx context.Context, req *hyprpanelv1.HostServiceE
 	return &hyprpanelv1.HostServiceExecResponse{}, nil
 }
 
-func (s *HostGRPCServer) FindApplication(ctx context.Context, req *hyprpanelv1.HostServiceFindApplicationRequest) (*hyprpanelv1.HostServiceFindApplicationResponse, error) {
+// FindApplication implementation.
+func (s *HostGRPCServer) FindApplication(_ context.Context, req *hyprpanelv1.HostServiceFindApplicationRequest) (*hyprpanelv1.HostServiceFindApplicationResponse, error) {
 	appInfo, err := s.Impl.FindApplication(req.Query)
 	if err != nil {
 		return &hyprpanelv1.HostServiceFindApplicationResponse{}, err
@@ -250,7 +278,8 @@ func (s *HostGRPCServer) FindApplication(ctx context.Context, req *hyprpanelv1.H
 	}, nil
 }
 
-func (s *HostGRPCServer) SystrayActivate(ctx context.Context, req *hyprpanelv1.HostServiceSystrayActivateRequest) (*hyprpanelv1.HostServiceSystrayActivateResponse, error) {
+// SystrayActivate implementation.
+func (s *HostGRPCServer) SystrayActivate(_ context.Context, req *hyprpanelv1.HostServiceSystrayActivateRequest) (*hyprpanelv1.HostServiceSystrayActivateResponse, error) {
 	err := s.Impl.SystrayActivate(req.BusName, req.X, req.Y)
 	if err != nil {
 		return &hyprpanelv1.HostServiceSystrayActivateResponse{}, err
@@ -259,7 +288,8 @@ func (s *HostGRPCServer) SystrayActivate(ctx context.Context, req *hyprpanelv1.H
 	return &hyprpanelv1.HostServiceSystrayActivateResponse{}, nil
 }
 
-func (s *HostGRPCServer) SystraySecondaryActivate(ctx context.Context, req *hyprpanelv1.HostServiceSystraySecondaryActivateRequest) (*hyprpanelv1.HostServiceSystraySecondaryActivateResponse, error) {
+// SystraySecondaryActivate implementation.
+func (s *HostGRPCServer) SystraySecondaryActivate(_ context.Context, req *hyprpanelv1.HostServiceSystraySecondaryActivateRequest) (*hyprpanelv1.HostServiceSystraySecondaryActivateResponse, error) {
 	err := s.Impl.SystraySecondaryActivate(req.BusName, req.X, req.Y)
 	if err != nil {
 		return &hyprpanelv1.HostServiceSystraySecondaryActivateResponse{}, err
@@ -268,7 +298,8 @@ func (s *HostGRPCServer) SystraySecondaryActivate(ctx context.Context, req *hypr
 	return &hyprpanelv1.HostServiceSystraySecondaryActivateResponse{}, nil
 }
 
-func (s *HostGRPCServer) SystrayScroll(ctx context.Context, req *hyprpanelv1.HostServiceSystrayScrollRequest) (*hyprpanelv1.HostServiceSystrayScrollResponse, error) {
+// SystrayScroll implementation.
+func (s *HostGRPCServer) SystrayScroll(_ context.Context, req *hyprpanelv1.HostServiceSystrayScrollRequest) (*hyprpanelv1.HostServiceSystrayScrollResponse, error) {
 	err := s.Impl.SystrayScroll(req.BusName, req.Delta, req.Orientation)
 	if err != nil {
 		return &hyprpanelv1.HostServiceSystrayScrollResponse{}, err
@@ -277,7 +308,8 @@ func (s *HostGRPCServer) SystrayScroll(ctx context.Context, req *hyprpanelv1.Hos
 	return &hyprpanelv1.HostServiceSystrayScrollResponse{}, nil
 }
 
-func (s *HostGRPCServer) SystrayMenuContextActivate(ctx context.Context, req *hyprpanelv1.HostServiceSystrayMenuContextActivateRequest) (*hyprpanelv1.HostServiceSystrayMenuContextActivateResponse, error) {
+// SystrayMenuContextActivate implementation.
+func (s *HostGRPCServer) SystrayMenuContextActivate(_ context.Context, req *hyprpanelv1.HostServiceSystrayMenuContextActivateRequest) (*hyprpanelv1.HostServiceSystrayMenuContextActivateResponse, error) {
 	err := s.Impl.SystrayMenuContextActivate(req.BusName, req.X, req.Y)
 	if err != nil {
 		return &hyprpanelv1.HostServiceSystrayMenuContextActivateResponse{}, err
@@ -286,7 +318,8 @@ func (s *HostGRPCServer) SystrayMenuContextActivate(ctx context.Context, req *hy
 	return &hyprpanelv1.HostServiceSystrayMenuContextActivateResponse{}, nil
 }
 
-func (s *HostGRPCServer) SystrayMenuAboutToShow(ctx context.Context, req *hyprpanelv1.HostServiceSystrayMenuAboutToShowRequest) (*hyprpanelv1.HostServiceSystrayMenuAboutToShowResponse, error) {
+// SystrayMenuAboutToShow implementation.
+func (s *HostGRPCServer) SystrayMenuAboutToShow(_ context.Context, req *hyprpanelv1.HostServiceSystrayMenuAboutToShowRequest) (*hyprpanelv1.HostServiceSystrayMenuAboutToShowResponse, error) {
 	err := s.Impl.SystrayMenuAboutToShow(req.BusName, req.MenuItemId)
 	if err != nil {
 		return &hyprpanelv1.HostServiceSystrayMenuAboutToShowResponse{}, err
@@ -295,7 +328,8 @@ func (s *HostGRPCServer) SystrayMenuAboutToShow(ctx context.Context, req *hyprpa
 	return &hyprpanelv1.HostServiceSystrayMenuAboutToShowResponse{}, nil
 }
 
-func (s *HostGRPCServer) SystrayMenuEvent(ctx context.Context, req *hyprpanelv1.HostServiceSystrayMenuEventRequest) (*hyprpanelv1.HostServiceSystrayMenuEventResponse, error) {
+// SystrayMenuEvent implementation.
+func (s *HostGRPCServer) SystrayMenuEvent(_ context.Context, req *hyprpanelv1.HostServiceSystrayMenuEventRequest) (*hyprpanelv1.HostServiceSystrayMenuEventResponse, error) {
 	timestamp := time.Unix(int64(req.Timestamp), 0)
 	err := s.Impl.SystrayMenuEvent(req.BusName, req.Id, req.EventId, req.Data, timestamp)
 	if err != nil {
@@ -305,7 +339,8 @@ func (s *HostGRPCServer) SystrayMenuEvent(ctx context.Context, req *hyprpanelv1.
 	return &hyprpanelv1.HostServiceSystrayMenuEventResponse{}, nil
 }
 
-func (s *HostGRPCServer) NotificationClosed(ctx context.Context, req *hyprpanelv1.HostServiceNotificationClosedRequest) (*hyprpanelv1.HostServiceNotificationClosedResponse, error) {
+// NotificationClosed implementation.
+func (s *HostGRPCServer) NotificationClosed(_ context.Context, req *hyprpanelv1.HostServiceNotificationClosedRequest) (*hyprpanelv1.HostServiceNotificationClosedResponse, error) {
 	err := s.Impl.NotificationClosed(req.Id, req.Reason)
 	if err != nil {
 		return &hyprpanelv1.HostServiceNotificationClosedResponse{}, err
@@ -314,7 +349,8 @@ func (s *HostGRPCServer) NotificationClosed(ctx context.Context, req *hyprpanelv
 	return &hyprpanelv1.HostServiceNotificationClosedResponse{}, nil
 }
 
-func (s *HostGRPCServer) NotificationAction(ctx context.Context, req *hyprpanelv1.HostServiceNotificationActionRequest) (*hyprpanelv1.HostServiceNotificationActionResponse, error) {
+// NotificationAction implementaiton.
+func (s *HostGRPCServer) NotificationAction(_ context.Context, req *hyprpanelv1.HostServiceNotificationActionRequest) (*hyprpanelv1.HostServiceNotificationActionResponse, error) {
 	err := s.Impl.NotificationAction(req.Id, req.ActionKey)
 	if err != nil {
 		return &hyprpanelv1.HostServiceNotificationActionResponse{}, err
@@ -323,7 +359,8 @@ func (s *HostGRPCServer) NotificationAction(ctx context.Context, req *hyprpanelv
 	return &hyprpanelv1.HostServiceNotificationActionResponse{}, nil
 }
 
-func (s *HostGRPCServer) AudioSinkVolumeAdjust(ctx context.Context, req *hyprpanelv1.HostServiceAudioSinkVolumeAdjustRequest) (*hyprpanelv1.HostServiceAudioSinkVolumeAdjustResponse, error) {
+// AudioSinkVolumeAdjust implementation.
+func (s *HostGRPCServer) AudioSinkVolumeAdjust(_ context.Context, req *hyprpanelv1.HostServiceAudioSinkVolumeAdjustRequest) (*hyprpanelv1.HostServiceAudioSinkVolumeAdjustResponse, error) {
 	err := s.Impl.AudioSinkVolumeAdjust(req.Id, req.Direction)
 	if err != nil {
 		return &hyprpanelv1.HostServiceAudioSinkVolumeAdjustResponse{}, err
@@ -332,7 +369,8 @@ func (s *HostGRPCServer) AudioSinkVolumeAdjust(ctx context.Context, req *hyprpan
 	return &hyprpanelv1.HostServiceAudioSinkVolumeAdjustResponse{}, nil
 }
 
-func (s *HostGRPCServer) AudioSinkMuteToggle(ctx context.Context, req *hyprpanelv1.HostServiceAudioSinkMuteToggleRequest) (*hyprpanelv1.HostServiceAudioSinkMuteToggleResponse, error) {
+// AudioSinkMuteToggle implementation.
+func (s *HostGRPCServer) AudioSinkMuteToggle(_ context.Context, req *hyprpanelv1.HostServiceAudioSinkMuteToggleRequest) (*hyprpanelv1.HostServiceAudioSinkMuteToggleResponse, error) {
 	err := s.Impl.AudioSinkMuteToggle(req.Id)
 	if err != nil {
 		return &hyprpanelv1.HostServiceAudioSinkMuteToggleResponse{}, err
@@ -341,7 +379,8 @@ func (s *HostGRPCServer) AudioSinkMuteToggle(ctx context.Context, req *hyprpanel
 	return &hyprpanelv1.HostServiceAudioSinkMuteToggleResponse{}, nil
 }
 
-func (s *HostGRPCServer) AudioSourceVolumeAdjust(ctx context.Context, req *hyprpanelv1.HostServiceAudioSourceVolumeAdjustRequest) (*hyprpanelv1.HostServiceAudioSourceVolumeAdjustResponse, error) {
+// AudioSourceVolumeAdjust implementation.
+func (s *HostGRPCServer) AudioSourceVolumeAdjust(_ context.Context, req *hyprpanelv1.HostServiceAudioSourceVolumeAdjustRequest) (*hyprpanelv1.HostServiceAudioSourceVolumeAdjustResponse, error) {
 	err := s.Impl.AudioSourceVolumeAdjust(req.Id, req.Direction)
 	if err != nil {
 		return &hyprpanelv1.HostServiceAudioSourceVolumeAdjustResponse{}, err
@@ -350,7 +389,8 @@ func (s *HostGRPCServer) AudioSourceVolumeAdjust(ctx context.Context, req *hyprp
 	return &hyprpanelv1.HostServiceAudioSourceVolumeAdjustResponse{}, nil
 }
 
-func (s *HostGRPCServer) AudioSourceMuteToggle(ctx context.Context, req *hyprpanelv1.HostServiceAudioSourceMuteToggleRequest) (*hyprpanelv1.HostServiceAudioSourceMuteToggleResponse, error) {
+// AudioSourceMuteToggle implmenetation.
+func (s *HostGRPCServer) AudioSourceMuteToggle(_ context.Context, req *hyprpanelv1.HostServiceAudioSourceMuteToggleRequest) (*hyprpanelv1.HostServiceAudioSourceMuteToggleResponse, error) {
 	err := s.Impl.AudioSourceMuteToggle(req.Id)
 	if err != nil {
 		return &hyprpanelv1.HostServiceAudioSourceMuteToggleResponse{}, err
@@ -359,7 +399,8 @@ func (s *HostGRPCServer) AudioSourceMuteToggle(ctx context.Context, req *hyprpan
 	return &hyprpanelv1.HostServiceAudioSourceMuteToggleResponse{}, nil
 }
 
-func (s *HostGRPCServer) BrightnessAdjust(ctx context.Context, req *hyprpanelv1.HostServiceBrightnessAdjustRequest) (*hyprpanelv1.HostServiceBrightnessAdjustResponse, error) {
+// BrightnessAdjust implementation.
+func (s *HostGRPCServer) BrightnessAdjust(_ context.Context, req *hyprpanelv1.HostServiceBrightnessAdjustRequest) (*hyprpanelv1.HostServiceBrightnessAdjustResponse, error) {
 	err := s.Impl.BrightnessAdjust(req.DevName, req.Direction)
 	if err != nil {
 		return &hyprpanelv1.HostServiceBrightnessAdjustResponse{}, err

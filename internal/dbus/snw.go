@@ -94,7 +94,7 @@ func (s *statusNotifierWatcher) RegisterStatusNotifierItem(target string, sender
 	return nil
 }
 
-func (s *statusNotifierWatcher) RegisterStatusNotifierHost(host string, sender dbus.Sender) *dbus.Error {
+func (s *statusNotifierWatcher) RegisterStatusNotifierHost(_ string, _ dbus.Sender) *dbus.Error {
 	return errDbusNotSupported
 }
 
@@ -119,7 +119,7 @@ func (s *statusNotifierWatcher) ProtocolVersion() int32 {
 	return 0
 }
 
-func (s *statusNotifierWatcher) systrayActivate(busName string, x, y int32) error {
+func (s *statusNotifierWatcher) Activate(busName string, x, y int32) error {
 	s.RLock()
 	defer s.RUnlock()
 	item, ok := s.items[busName]
@@ -134,7 +134,7 @@ func (s *statusNotifierWatcher) systrayActivate(busName string, x, y int32) erro
 	return nil
 }
 
-func (s *statusNotifierWatcher) systraySecondaryActivate(busName string, x, y int32) error {
+func (s *statusNotifierWatcher) SecondaryActivate(busName string, x, y int32) error {
 	s.RLock()
 	defer s.RUnlock()
 	item, ok := s.items[busName]
@@ -149,7 +149,7 @@ func (s *statusNotifierWatcher) systraySecondaryActivate(busName string, x, y in
 	return nil
 }
 
-func (s *statusNotifierWatcher) systrayScroll(busName string, delta int32, orientation hyprpanelv1.SystrayScrollOrientation) error {
+func (s *statusNotifierWatcher) Scroll(busName string, delta int32, orientation hyprpanelv1.SystrayScrollOrientation) error {
 	s.RLock()
 	defer s.RUnlock()
 	item, ok := s.items[busName]
@@ -171,7 +171,7 @@ func (s *statusNotifierWatcher) systrayScroll(busName string, delta int32, orien
 	return nil
 }
 
-func (s *statusNotifierWatcher) systrayMenuContextActivate(busName string, x, y int32) error {
+func (s *statusNotifierWatcher) MenuContextActivate(busName string, x, y int32) error {
 	s.RLock()
 	defer s.RUnlock()
 	item, ok := s.items[busName]
@@ -186,7 +186,7 @@ func (s *statusNotifierWatcher) systrayMenuContextActivate(busName string, x, y 
 	return nil
 }
 
-func (s *statusNotifierWatcher) systrayMenuAboutToShow(busName string, menuItemID string) error {
+func (s *statusNotifierWatcher) MenuAboutToShow(busName string, menuItemID string) error {
 	s.RLock()
 	defer s.RUnlock()
 	item, ok := s.items[busName]
@@ -204,7 +204,7 @@ func (s *statusNotifierWatcher) systrayMenuAboutToShow(busName string, menuItemI
 	return nil
 }
 
-func (s *statusNotifierWatcher) systrayMenuEvent(busName string, id int32, eventId hyprpanelv1.SystrayMenuEvent, _ any, timestamp time.Time) error {
+func (s *statusNotifierWatcher) MenuEvent(busName string, id int32, eventID hyprpanelv1.SystrayMenuEvent, _ any, timestamp time.Time) error {
 	s.RLock()
 	defer s.RUnlock()
 	item, ok := s.items[busName]
@@ -213,7 +213,7 @@ func (s *statusNotifierWatcher) systrayMenuEvent(busName string, id int32, event
 	}
 
 	var event string
-	switch eventId {
+	switch eventID {
 	case hyprpanelv1.SystrayMenuEvent_SYSTRAY_MENU_EVENT_CLICKED:
 		event = `clicked`
 	case hyprpanelv1.SystrayMenuEvent_SYSTRAY_MENU_EVENT_HOVERED:
@@ -545,7 +545,9 @@ func (s *statusNotifierWatcher) watch() {
 					delete(s.items, item.busName)
 					delete(s.itemSenders, name)
 					s.Unlock()
-					s.conn.Emit(snwPath, snwSignalItemUnregistered, fmt.Sprintf("%s%s", item.busName, item.objectPath))
+					if err := s.conn.Emit(snwPath, snwSignalItemUnregistered, fmt.Sprintf("%s%s", item.busName, item.objectPath)); err != nil {
+						s.log.Warn(`Failed emitting unregister signal for sni`, `busName`, item.busName, `objectPath`, item.objectPath, `err`, err)
+					}
 				}
 			}
 		}

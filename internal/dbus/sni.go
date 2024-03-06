@@ -13,12 +13,12 @@ const (
 	sniName = `org.kde.StatusNotifierItem`
 	sniPath = dbus.ObjectPath(`/StatusNotifierItem`)
 
-	sniPropertyId                  = sniName + `.Id`
+	sniPropertyID                  = sniName + `.Id`
 	sniPropertyTooltip             = sniName + `.Tooltip`
 	sniPropertyTitle               = sniName + `.Title`
 	sniPropertyIconThemePath       = sniName + `.IconThemePath`
 	sniPropertyStatus              = sniName + `.Status`
-	sniPropertyWindowId            = sniName + `.WindowId`
+	sniPropertyWindowID            = sniName + `.WindowId`
 	sniPropertyIconName            = sniName + `.IconName`
 	sniPropertyIconPixmap          = sniName + `.IconPixmap`
 	sniPropertyAttentionIconName   = sniName + `.AttentionIconName`
@@ -55,8 +55,8 @@ type statusNotifierItem struct {
 	target     *eventv1.StatusNotifierValue
 }
 
-func (i *statusNotifierItem) updateId() error {
-	idProp, err := i.busObj.GetProperty(sniPropertyId)
+func (i *statusNotifierItem) updateID() error {
+	idProp, err := i.busObj.GetProperty(sniPropertyID)
 	if err != nil {
 		return err
 	}
@@ -266,7 +266,7 @@ func newStatusNotifierItem(conn *dbus.Conn, logger hclog.Logger, busName string,
 		},
 	}
 
-	if err := i.updateId(); err != nil {
+	if err := i.updateID(); err != nil {
 		return nil, err
 	}
 

@@ -134,7 +134,7 @@ func (s *systray) build(container *gtk.Box) error {
 		s.revealer.SetRevealChild(!s.revealer.GetRevealChild())
 	}
 	s.AddRef(func() {
-		glib.UnrefCallback(&revealBtnCb)
+		unrefCallback(&revealBtnCb)
 	})
 	s.revealBtn.ConnectClicked(&revealBtnCb)
 
@@ -151,7 +151,7 @@ func (s *systray) build(container *gtk.Box) error {
 				case <-s.hideInhibitor.wait():
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
-						defer glib.UnrefCallback(&cb)
+						defer unrefCallback(&cb)
 						s.revealer.SetRevealChild(false)
 						return false
 					}
@@ -167,7 +167,7 @@ func (s *systray) build(container *gtk.Box) error {
 		}
 	}
 	s.AddRef(func() {
-		glib.UnrefCallback(&revealCb)
+		unrefCallback(&revealCb)
 	})
 	s.revealer.ConnectSignal(`notify::child-revealed`, &revealCb)
 
@@ -259,7 +259,7 @@ func (s *systray) watch() {
 
 					var addCb glib.SourceFunc
 					addCb = func(uintptr) bool {
-						defer glib.UnrefCallback(&addCb)
+						defer unrefCallback(&addCb)
 						if err := s.addItem(data); err != nil {
 							log.Error(`Failed adding systray item`, `module`, style.SystrayID, `err`, err)
 						}
@@ -278,7 +278,7 @@ func (s *systray) watch() {
 
 					var deleteCb glib.SourceFunc
 					deleteCb = func(uintptr) bool {
-						defer glib.UnrefCallback(&deleteCb)
+						defer unrefCallback(&deleteCb)
 						if err := s.deleteItem(data); err != nil {
 							log.Debug(`Failed deleting item`, `module`, style.SystrayID, `err`, err)
 							return false
@@ -300,7 +300,7 @@ func (s *systray) watch() {
 
 					var updateCb glib.SourceFunc
 					updateCb = func(uintptr) bool {
-						defer glib.UnrefCallback(&updateCb)
+						defer unrefCallback(&updateCb)
 						item, ok := s.items[data.BusName]
 						if !ok {
 							return false
@@ -325,7 +325,7 @@ func (s *systray) watch() {
 
 					var updateCb glib.SourceFunc
 					updateCb = func(uintptr) bool {
-						defer glib.UnrefCallback(&updateCb)
+						defer unrefCallback(&updateCb)
 						item, ok := s.items[data.BusName]
 						if !ok {
 							return false
@@ -350,7 +350,7 @@ func (s *systray) watch() {
 
 					var updateCb glib.SourceFunc
 					updateCb = func(uintptr) bool {
-						defer glib.UnrefCallback(&updateCb)
+						defer unrefCallback(&updateCb)
 						item, ok := s.items[data.BusName]
 						if !ok {
 							return false
@@ -377,7 +377,7 @@ func (s *systray) watch() {
 
 					var updateCb glib.SourceFunc
 					updateCb = func(uintptr) bool {
-						defer glib.UnrefCallback(&updateCb)
+						defer unrefCallback(&updateCb)
 						item, ok := s.items[data.BusName]
 						if !ok {
 							return false
@@ -402,7 +402,7 @@ func (s *systray) watch() {
 
 					var updateCb glib.SourceFunc
 					updateCb = func(uintptr) bool {
-						defer glib.UnrefCallback(&updateCb)
+						defer unrefCallback(&updateCb)
 						item, ok := s.items[data.BusName]
 						if !ok {
 							return false

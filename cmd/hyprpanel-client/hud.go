@@ -39,7 +39,7 @@ type hud struct {
 	timer *time.Timer
 }
 
-func (h *hud) build(container *gtk.Box) error {
+func (h *hud) build(_ *gtk.Box) error {
 	if err := h.buildOverlay(); err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (h *hud) buildItem() error {
 	}
 	h.item.ConnectSignal(`notify::child-revealed`, &revealCb)
 	h.AddRef(func() {
-		glib.UnrefCallback(&revealCb)
+		unrefCallback(&revealCb)
 	})
 
 	unmapCb := func(gtk.Widget) {
@@ -73,7 +73,7 @@ func (h *hud) buildItem() error {
 	}
 	h.item.ConnectUnmap(&unmapCb)
 	h.AddRef(func() {
-		glib.UnrefCallback(&unmapCb)
+		unrefCallback(&unmapCb)
 	})
 
 	switch h.cfg.Position {
@@ -339,7 +339,7 @@ func (h *hud) watch() {
 
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
-						defer glib.UnrefCallback(&cb)
+						defer unrefCallback(&cb)
 						if err := h.update(data); err != nil {
 							log.Warn(`Failed updating`, `module`, style.HudID, `err`, err)
 						}
@@ -353,7 +353,7 @@ func (h *hud) watch() {
 	}
 }
 
-func (h *hud) close(container *gtk.Box) {
+func (h *hud) close(_ *gtk.Box) {
 	log.Debug(`Closing module on request`, `module`, style.HudID)
 	defer h.Unref()
 	h.overlay.Close()

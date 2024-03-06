@@ -1,3 +1,4 @@
+// Package main provides the hyprpanel panel plugin binary
 package main
 
 import (

@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
+// NotificationHintKey enum
 type NotificationHintKey string
 
 const (
@@ -38,14 +39,14 @@ const (
 	NotificationHintKeyDesktopEntry NotificationHintKey = "desktop-entry"
 	// NotificationHintKeyImageData (iiibiiay)	This is a raw data image format which describes the width, height, rowstride, has alpha, bits per sample, channels and image data respectively.	>= 1.2
 	NotificationHintKeyImageData NotificationHintKey = "image-data"
-	// NotificationHintKeyImage_Data (iiibiiay)	Deprecated. Use image-data instead.	= 1.1
-	NotificationHintKeyImage_Data NotificationHintKey = "image_data"
+	// NotificationHintKeyImageDataAlt (iiibiiay)	Deprecated. Use image-data instead.	= 1.1
+	NotificationHintKeyImageDataAlt NotificationHintKey = "image_data"
 	// NotificationHintKeyImagePath STRING	Alternative way to define the notification image. See Icons and Images.	>= 1.2
 	NotificationHintKeyImagePath NotificationHintKey = "image-path"
-	// NotificationHintKeyImage_Path STRING	Deprecated. Use image-path instead.	= 1.1
-	NotificationHintKeyImage_Path NotificationHintKey = "image_path"
-	// NotificationHintKeyIcon_Data (iiibiiay)	Deprecated. Use image-data instead.	< 1.1
-	NotificationHintKeyIcon_Data NotificationHintKey = "icon_data"
+	// NotificationHintKeyImagePathAlt STRING	Deprecated. Use image-path instead.	= 1.1
+	NotificationHintKeyImagePathAlt NotificationHintKey = "image_path"
+	// NotificationHintKeyIconDataAlt (iiibiiay)	Deprecated. Use image-data instead.	< 1.1
+	NotificationHintKeyIconDataAlt NotificationHintKey = "icon_data"
 	// NotificationHintKeyResident BOOLEAN	When set the server will not automatically remove the notification when an action has been invoked. The notification will remain resident in the server until it is explicitly removed by the user or by the sender. This hint is likely only useful when the server has the "persistence" capability.	>= 1.2
 	NotificationHintKeyResident NotificationHintKey = "resident"
 	// NotificationHintKeySoundFile STRING	The path to a sound file to play when the notification pops up.
@@ -202,7 +203,7 @@ func (n *notifications) init() error {
 
 }
 
-func (n *notifications) notificationClosed(id uint32, reason hyprpanelv1.NotificationClosedReason) error {
+func (n *notifications) Closed(id uint32, reason hyprpanelv1.NotificationClosedReason) error {
 	n.log.Trace(`Emitting notification closed signal`, `id`, id, `reason`, reason)
 	if err := n.conn.Emit(notificationsPath, notificationsSignalNotificationClosed, id, reason); err != nil {
 		return &dbus.ErrMsgInvalidArg
@@ -210,7 +211,7 @@ func (n *notifications) notificationClosed(id uint32, reason hyprpanelv1.Notific
 	return nil
 }
 
-func (n *notifications) notificationAction(id uint32, actionKey string) error {
+func (n *notifications) Action(id uint32, actionKey string) error {
 	n.log.Trace(`Emitting notification action invoked signal`, `id`, id, `actionKey`, actionKey)
 	if err := n.conn.Emit(notificationsPath, notificationsSignalActionInvoked, id, actionKey); err != nil {
 		return &dbus.ErrMsgInvalidArg
@@ -237,7 +238,7 @@ func hintToAny(name NotificationHintKey, val dbus.Variant) (*anypb.Any, error) {
 		return nil, nil
 	}
 	switch name {
-	case NotificationHintKeyCategory, NotificationHintKeyDesktopEntry, NotificationHintKeyImagePath, NotificationHintKeyImage_Path, NotificationHintKeySoundFile, NotificationHintKeySoundName:
+	case NotificationHintKeyCategory, NotificationHintKeyDesktopEntry, NotificationHintKeyImagePath, NotificationHintKeyImagePathAlt, NotificationHintKeySoundFile, NotificationHintKeySoundName:
 		var v string
 		if err := val.Store(&v); err != nil {
 			return nil, err
@@ -255,7 +256,7 @@ func hintToAny(name NotificationHintKey, val dbus.Variant) (*anypb.Any, error) {
 			return nil, err
 		}
 		return anypb.New(wrapperspb.Int32(v))
-	case NotificationHintKeyImageData, NotificationHintKeyImage_Data, NotificationHintKeyIcon_Data:
+	case NotificationHintKeyImageData, NotificationHintKeyImageDataAlt, NotificationHintKeyIconDataAlt:
 		var v = &eventv1.NotificationValue_Pixmap{}
 		if err := val.Store(v); err != nil {
 			return nil, err

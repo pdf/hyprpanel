@@ -1,3 +1,4 @@
+// Package dbus provides access to DBUS APIs.
 package dbus
 
 import (
@@ -21,6 +22,28 @@ var (
 	errUnsupported      = errors.New(`unsupported`)
 )
 
+// Systray DBUS API, may return nil if Systray is disabled.
+type Systray interface {
+	Activate(busName string, x, y int32) error
+	SecondaryActivate(busName string, x, y int32) error
+	Scroll(busName string, delta int32, orientation hyprpanelv1.SystrayScrollOrientation) error
+	MenuContextActivate(busName string, x, y int32) error
+	MenuAboutToShow(busName string, menuItemID string) error
+	MenuEvent(busName string, id int32, eventID hyprpanelv1.SystrayMenuEvent, data any, timestamp time.Time) error
+}
+
+// Notification DBUS API, may return nil if Notifications are disabled.
+type Notification interface {
+	Closed(id uint32, reason hyprpanelv1.NotificationClosedReason) error
+	Action(id uint32, actionKey string) error
+}
+
+// Brightness DBUS API, may return nil if Brightness is disabled.
+type Brightness interface {
+	Adjust(devName string, direction eventv1.Direction) error
+}
+
+// Client for DBUS.
 type Client struct {
 	cfg             *configv1.Config_DBUS
 	log             hclog.Logger
@@ -35,82 +58,27 @@ type Client struct {
 	power           *power
 }
 
-func (c *Client) SystrayActivate(busName string, x, y int32) error {
-	if !c.cfg.Systray.Enabled {
-		return errUnsupported
-	}
-
-	return c.snw.systrayActivate(busName, x, y)
+// Systray API.
+func (c *Client) Systray() Systray {
+	return c.snw
 }
 
-func (c *Client) SystraySecondaryActivate(busName string, x, y int32) error {
-	if !c.cfg.Systray.Enabled {
-		return errUnsupported
-	}
-
-	return c.snw.systraySecondaryActivate(busName, x, y)
+// Notification API.
+func (c *Client) Notification() Notification {
+	return c.notifications
 }
 
-func (c *Client) SystrayScroll(busName string, delta int32, orientation hyprpanelv1.SystrayScrollOrientation) error {
-	if !c.cfg.Systray.Enabled {
-		return errUnsupported
-	}
-
-	return c.snw.systrayScroll(busName, delta, orientation)
+// Brightness API.
+func (c *Client) Brightness() Brightness {
+	return c.brightness
 }
 
-func (c *Client) SystrayMenuContextActivate(busName string, x, y int32) error {
-	if !c.cfg.Systray.Enabled {
-		return errUnsupported
-	}
-
-	return c.snw.systrayMenuContextActivate(busName, x, y)
-}
-
-func (c *Client) SystrayMenuAboutToShow(busName string, menuItemID string) error {
-	if !c.cfg.Systray.Enabled {
-		return errUnsupported
-	}
-
-	return c.snw.systrayMenuAboutToShow(busName, menuItemID)
-}
-
-func (c *Client) SystrayMenuEvent(busName string, id int32, eventId hyprpanelv1.SystrayMenuEvent, data any, timestamp time.Time) error {
-	if !c.cfg.Systray.Enabled {
-		return errUnsupported
-	}
-
-	return c.snw.systrayMenuEvent(busName, id, eventId, data, timestamp)
-}
-
-func (c *Client) NotificationClosed(id uint32, reason hyprpanelv1.NotificationClosedReason) error {
-	if !c.cfg.Notifications.Enabled {
-		return errUnsupported
-	}
-
-	return c.notifications.notificationClosed(id, reason)
-}
-
-func (c *Client) NotificationAction(id uint32, actionKey string) error {
-	if !c.cfg.Notifications.Enabled {
-		return errUnsupported
-	}
-
-	return c.notifications.notificationAction(id, actionKey)
-}
-
-func (c *Client) BrightnessAdjust(devName string, direction eventv1.Direction) error {
-	if !c.cfg.Brightness.Enabled {
-		return errUnsupported
-	}
-
-	return c.brightness.brightnessAdjust(devName, direction)
-}
-
+// Events channel will deliver events from DBUS.
 func (c *Client) Events() <-chan *eventv1.Event {
 	return c.eventCh
 }
 
+// Close the client.
 func (c *Client) Close() error {
 	close(c.quitCh)
 	if c.snw != nil {
@@ -124,10 +92,11 @@ func (c *Client) Close() error {
 	return c.sessionConn.Close()
 }
 
-func (s *Client) init() error {
+func (c *Client) init() error {
 	return nil
 }
 
+// New instantiates a new DBUS client.
 func New(cfg *configv1.Config_DBUS, logger hclog.Logger) (*Client, <-chan *eventv1.Event, error) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(cfg.ConnectTimeout.AsDuration()))
 	defer cancel()

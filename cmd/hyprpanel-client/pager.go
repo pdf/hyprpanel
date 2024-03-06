@@ -288,7 +288,7 @@ func (p *pager) build(container *gtk.Box) error {
 		return true
 	}
 	p.AddRef(func() {
-		glib.UnrefCallback(&scrollCb)
+		unrefCallback(&scrollCb)
 	})
 
 	scrollController := gtk.NewEventControllerScroll(gtk.EventControllerScrollVerticalValue | gtk.EventControllerScrollDiscreteValue)
@@ -358,7 +358,7 @@ func (p *pager) watch() {
 					}
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
-						defer glib.UnrefCallback(&cb)
+						defer unrefCallback(&cb)
 						p.deleteClient(addr)
 						return false
 					}
@@ -385,7 +385,7 @@ func (p *pager) watch() {
 					}
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
-						defer glib.UnrefCallback(&cb)
+						defer unrefCallback(&cb)
 						p.renameWorkspace(int(data.Id), data.Name)
 						return false
 					}
@@ -402,7 +402,7 @@ func (p *pager) watch() {
 
 			var cb glib.SourceFunc
 			cb = func(uintptr) bool {
-				defer glib.UnrefCallback(&cb)
+				defer unrefCallback(&cb)
 				if err := p.update(); err != nil {
 					log.Debug(`Failed updating`, `module`, style.PagerID, `err`, err)
 					return false

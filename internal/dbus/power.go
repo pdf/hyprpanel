@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	powerHudId = `power`
+	powerHudID = `power`
 
 	powerDisplayDevice = `DisplayDevice`
 )
@@ -43,7 +43,7 @@ type power struct {
 func (b *power) updatePower(objPath dbus.ObjectPath, props map[string]dbus.Variant) error {
 	name := filepath.Base(string(objPath))
 	if name == powerDisplayDevice {
-		name = eventv1.PowerDefaultId
+		name = eventv1.PowerDefaultID
 	}
 
 	powerValue := &eventv1.PowerChangeValue{
@@ -207,7 +207,7 @@ func (b *power) updatePower(objPath dbus.ObjectPath, props map[string]dbus.Varia
 	}
 
 	hudValue := &eventv1.HudNotificationValue{
-		Id:           powerHudId,
+		Id:           powerHudID,
 		Icon:         powerValue.Icon,
 		IconSymbolic: true,
 		Title:        powerValue.Id,

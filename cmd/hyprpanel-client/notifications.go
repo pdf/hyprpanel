@@ -142,7 +142,9 @@ func (n *notifications) deleteNotification(id uint32) {
 		n.overlay.SetVisible(false)
 	}
 
-	n.panel.host.NotificationClosed(item.data.Id, hyprpanelv1.NotificationClosedReason_NOTIFICATION_CLOSED_REASON_DISMISSED)
+	if err := n.panel.host.NotificationClosed(item.data.Id, hyprpanelv1.NotificationClosedReason_NOTIFICATION_CLOSED_REASON_DISMISSED); err != nil {
+		log.Debug(`Failed signalling notification closed`, `module`, style.NotificationsID, `err`, err)
+	}
 }
 
 func (n *notifications) events() chan<- *eventv1.Event {
@@ -173,7 +175,7 @@ func (n *notifications) watch() {
 
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
-						defer glib.UnrefCallback(&cb)
+						defer unrefCallback(&cb)
 						item := newNotificationItem(n, data)
 						n.addNotification(item)
 						return false
@@ -189,7 +191,7 @@ func (n *notifications) watch() {
 
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
-						defer glib.UnrefCallback(&cb)
+						defer unrefCallback(&cb)
 						n.RLock()
 						defer n.RUnlock()
 						item, ok := n.items[id]

@@ -273,10 +273,12 @@ func (i *systrayItem) buildMenuXMLSection(menuData *eventv1.StatusNotifierValue_
 		}
 
 		cb := func(action gio.SimpleAction, param uintptr) {
-			i.tray.panel.host.SystrayMenuEvent(i.data.BusName, menuData.Id, hyprpanelv1.SystrayMenuEvent_SYSTRAY_MENU_EVENT_CLICKED, nil, time.Now())
+			if err := i.tray.panel.host.SystrayMenuEvent(i.data.BusName, menuData.Id, hyprpanelv1.SystrayMenuEvent_SYSTRAY_MENU_EVENT_CLICKED, nil, time.Now()); err != nil {
+				log.Debug(`Signal systray menu event failed`, `module`, style.SystrayID, `err`, err)
+			}
 		}
 		i.menuRefs.AddRef(func() {
-			glib.UnrefCallback(&cb)
+			unrefCallback(&cb)
 		})
 
 		action.SetEnabled(!menuData.Properties.IsDisabled)
@@ -359,7 +361,7 @@ func (i *systrayItem) autoHide(container *gtk.FlowBox, hiddenContainer *gtk.Flow
 	time.AfterFunc(i.tray.cfg.AutoHideDelay.AsDuration(), func() {
 		var moveCb glib.SourceFunc
 		moveCb = func(uintptr) bool {
-			defer glib.UnrefCallback(&moveCb)
+			defer unrefCallback(&moveCb)
 			select {
 			case <-i.quitCh:
 				return false
@@ -396,13 +398,13 @@ func (i *systrayItem) setHidden(hidden bool, container *gtk.FlowBox, hiddenConta
 	}
 
 	var (
-		initialHandle  uint32 = 0
+		initialHandle  uint32
 		revealCb       func()
 		revealCbHandle = &initialHandle
 	)
 	revealCb = func() {
 		i.revealer.DisconnectSignal(*revealCbHandle)
-		defer glib.UnrefCallback(&revealCb)
+		defer unrefCallback(&revealCb)
 
 		if hidden {
 			container.Remove(&i.wrapper.Widget)
@@ -480,7 +482,7 @@ func (i *systrayItem) build(container *gtk.FlowBox, hiddenContainer *gtk.FlowBox
 		}
 	}
 	i.AddRef(func() {
-		glib.UnrefCallback(&clickCb)
+		unrefCallback(&clickCb)
 	})
 	clickController.ConnectReleased(&clickCb)
 
@@ -500,7 +502,7 @@ func (i *systrayItem) build(container *gtk.FlowBox, hiddenContainer *gtk.FlowBox
 		return true
 	}
 	i.AddRef(func() {
-		glib.UnrefCallback(&scrollCb)
+		unrefCallback(&scrollCb)
 	})
 	scrollController.ConnectScroll(&scrollCb)
 

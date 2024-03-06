@@ -1,5 +1,6 @@
 package hypripc
 
+// Client window container.
 type Client struct {
 	Address   string `json:"address"`
 	Mapped    bool   `json:"mapped"`

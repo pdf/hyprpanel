@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/jwijenbergh/puregotk/v4/gdk"
-	"github.com/jwijenbergh/puregotk/v4/glib"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"github.com/jwijenbergh/puregotk/v4/pango"
 	"github.com/pdf/hyprpanel/internal/dbus"
@@ -41,13 +40,13 @@ func (i *notificationItem) build(container *gtk.Box) error {
 		}
 	}
 	i.AddRef(func() {
-		glib.UnrefCallback(&revealCb)
+		unrefCallback(&revealCb)
 	})
 	i.container.ConnectSignal(`notify::child-revealed`, &revealCb)
 
 	var unmapCb func(gtk.Widget)
 	unmapCb = func(_ gtk.Widget) {
-		defer glib.UnrefCallback(&unmapCb)
+		defer unrefCallback(&unmapCb)
 		close(i.closed)
 		i.n.deleteNotification(i.data.Id)
 	}
@@ -85,7 +84,7 @@ func (i *notificationItem) build(container *gtk.Box) error {
 	hasIcon := false
 	for _, hint := range i.data.Hints {
 		switch dbus.NotificationHintKey(hint.Key) {
-		case dbus.NotificationHintKeyImagePath, dbus.NotificationHintKeyImage_Path:
+		case dbus.NotificationHintKeyImagePath, dbus.NotificationHintKeyImagePathAlt:
 			if hasIcon {
 				continue
 			}
@@ -98,7 +97,7 @@ func (i *notificationItem) build(container *gtk.Box) error {
 				iconContainer.SetCenterWidget(&icon.Widget)
 				hasIcon = true
 			}
-		case dbus.NotificationHintKeyImageData, dbus.NotificationHintKeyImage_Data, dbus.NotificationHintKeyIcon_Data:
+		case dbus.NotificationHintKeyImageData, dbus.NotificationHintKeyImageDataAlt, dbus.NotificationHintKeyIconDataAlt:
 			if hasIcon {
 				continue
 			}
@@ -201,7 +200,7 @@ func (i *notificationItem) build(container *gtk.Box) error {
 				}
 			}
 			i.AddRef(func() {
-				glib.UnrefCallback(&cb)
+				unrefCallback(&cb)
 			})
 			btn.ConnectClicked(&cb)
 
@@ -254,7 +253,9 @@ func (i *notificationItem) build(container *gtk.Box) error {
 
 					for _, client := range clients {
 						if client.Pid == pid {
-							i.focusWindow(client.Address)
+							if err := i.focusWindow(client.Address); err != nil {
+								log.Debug(`Failed to focus window`, `module`, style.NotificationsID, `address`, client.Address, `err`, err)
+							}
 						}
 					}
 
@@ -267,7 +268,7 @@ func (i *notificationItem) build(container *gtk.Box) error {
 		}
 	}
 	i.AddRef(func() {
-		glib.UnrefCallback(&clickCb)
+		unrefCallback(&clickCb)
 	})
 	clickController.ConnectReleased(&clickCb)
 	outer.AddController(&clickController.EventController)
@@ -294,8 +295,8 @@ func (i *notificationItem) build(container *gtk.Box) error {
 		i.timer.Reset(i.timeout)
 	}
 	i.AddRef(func() {
-		glib.UnrefCallback(&enterCallback)
-		glib.UnrefCallback(&leaveCallback)
+		unrefCallback(&enterCallback)
+		unrefCallback(&leaveCallback)
 	})
 	motionController.ConnectEnter(&enterCallback)
 	motionController.ConnectLeave(&leaveCallback)

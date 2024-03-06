@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jwijenbergh/puregotk/v4/glib"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 )
 
@@ -26,11 +25,13 @@ func (s *systrayInhibitor) newController() *gtk.EventControllerMotion {
 	return ctrl
 }
 
+/*
 func (s *systrayInhibitor) inhibited() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.inhib
 }
+*/
 
 func (s *systrayInhibitor) wait() <-chan time.Time {
 	return s.timer.C
@@ -77,8 +78,8 @@ func newSystrayInhibitor(timeout time.Duration) *systrayInhibitor {
 	}
 
 	s.AddRef(func() {
-		glib.UnrefCallback(&s.enterCb)
-		glib.UnrefCallback(&s.leaveCb)
+		unrefCallback(&s.enterCb)
+		unrefCallback(&s.leaveCb)
 	})
 
 	return s

@@ -85,56 +85,56 @@ func (h *host) SystrayActivate(busName string, x, y int32) error {
 	if h.cfg.Dbus == nil || !h.cfg.Dbus.Enabled {
 		return errDisabled
 	}
-	return h.dbus.SystrayActivate(busName, x, y)
+	return h.dbus.Systray().Activate(busName, x, y)
 }
 
 func (h *host) SystraySecondaryActivate(busName string, x, y int32) error {
 	if h.cfg.Dbus == nil || !h.cfg.Dbus.Enabled {
 		return errDisabled
 	}
-	return h.dbus.SystraySecondaryActivate(busName, x, y)
+	return h.dbus.Systray().SecondaryActivate(busName, x, y)
 }
 
 func (h *host) SystrayScroll(busName string, delta int32, orientation hyprpanelv1.SystrayScrollOrientation) error {
 	if h.cfg.Dbus == nil || !h.cfg.Dbus.Enabled {
 		return errDisabled
 	}
-	return h.dbus.SystrayScroll(busName, delta, orientation)
+	return h.dbus.Systray().Scroll(busName, delta, orientation)
 }
 
 func (h *host) SystrayMenuContextActivate(busName string, x, y int32) error {
 	if h.cfg.Dbus == nil || !h.cfg.Dbus.Enabled {
 		return errDisabled
 	}
-	return h.dbus.SystrayMenuContextActivate(busName, x, y)
+	return h.dbus.Systray().MenuContextActivate(busName, x, y)
 }
 
 func (h *host) SystrayMenuAboutToShow(busName string, menuItemID string) error {
 	if h.cfg.Dbus == nil || !h.cfg.Dbus.Enabled {
 		return errDisabled
 	}
-	return h.dbus.SystrayMenuAboutToShow(busName, menuItemID)
+	return h.dbus.Systray().MenuAboutToShow(busName, menuItemID)
 }
 
-func (h *host) SystrayMenuEvent(busName string, id int32, eventId hyprpanelv1.SystrayMenuEvent, data any, timestamp time.Time) error {
+func (h *host) SystrayMenuEvent(busName string, id int32, eventID hyprpanelv1.SystrayMenuEvent, data any, timestamp time.Time) error {
 	if h.cfg.Dbus == nil || !h.cfg.Dbus.Enabled {
 		return errDisabled
 	}
-	return h.dbus.SystrayMenuEvent(busName, id, eventId, data, timestamp)
+	return h.dbus.Systray().MenuEvent(busName, id, eventID, data, timestamp)
 }
 
 func (h *host) NotificationClosed(id uint32, reason hyprpanelv1.NotificationClosedReason) error {
 	if h.cfg.Dbus == nil || !h.cfg.Dbus.Enabled {
 		return errDisabled
 	}
-	return h.dbus.NotificationClosed(id, reason)
+	return h.dbus.Notification().Closed(id, reason)
 }
 
 func (h *host) NotificationAction(id uint32, actionKey string) error {
 	if h.cfg.Dbus == nil || !h.cfg.Dbus.Enabled {
 		return errDisabled
 	}
-	return h.dbus.NotificationAction(id, actionKey)
+	return h.dbus.Notification().Action(id, actionKey)
 }
 
 func (h *host) AudioSinkVolumeAdjust(id string, direction eventv1.Direction) error {
@@ -174,7 +174,7 @@ func (h *host) BrightnessAdjust(devName string, direction eventv1.Direction) err
 		return errDisabled
 	}
 
-	return h.dbus.BrightnessAdjust(devName, direction)
+	return h.dbus.Brightness().Adjust(devName, direction)
 }
 
 func (h *host) runPanel(clientPath string, layerShellPath string, prevPreload string, id string, cfg *configv1.Panel) (panelplugin.Panel, *plugin.Client, error) {
@@ -212,7 +212,9 @@ func (h *host) runPanel(clientPath string, layerShellPath string, prevPreload st
 	}
 
 	panel := raw.(panelplugin.Panel)
-	panel.Init(h, id, h.cfg.LogLevel, cfg, h.stylesheet)
+	if err := panel.Init(h, id, h.cfg.LogLevel, cfg, h.stylesheet); err != nil {
+		return nil, nil, err
+	}
 
 	return panel, client, nil
 }
@@ -375,7 +377,7 @@ func (h *host) run() error {
 	if err != nil {
 		panic(err)
 	}
-	hyprEvtCh, cancel := hypr.Subscribe(hypripc.EventUnspecified)
+	hyprEvtCh, cancel := hypr.Subscribe()
 	defer func() {
 		cancel()
 		hypr.Close()

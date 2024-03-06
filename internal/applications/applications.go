@@ -1,3 +1,4 @@
+// Package applications provides an API for querying Desktop entries.
 package applications
 
 import (
@@ -22,9 +23,11 @@ const (
 )
 
 var (
+	// ErrNotFound is returned when an application is not found.
 	ErrNotFound = errors.New(`application not found`)
 )
 
+// AppCache holds an auto-updated list of Desktop application data.
 type AppCache struct {
 	log        hclog.Logger
 	mu         sync.RWMutex
@@ -35,6 +38,7 @@ type AppCache struct {
 	cacheLower map[string]*hyprpanelv1.AppInfo
 }
 
+// Find an application by class.
 func (a *AppCache) Find(class string) *hyprpanelv1.AppInfo {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -58,6 +62,7 @@ func (a *AppCache) Find(class string) *hyprpanelv1.AppInfo {
 	}
 }
 
+// Refresh the cache.
 func (a *AppCache) Refresh() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -78,6 +83,7 @@ func (a *AppCache) Refresh() error {
 	return nil
 }
 
+// Close this instance.
 func (a *AppCache) Close() error {
 	close(a.quitCh)
 	return a.watcher.Close()
@@ -162,7 +168,9 @@ func (a *AppCache) watch() {
 				}
 				debounce.Reset(200 * time.Millisecond)
 			case <-debounce.C:
-				a.Refresh()
+				if err := a.Refresh(); err != nil {
+					a.log.Warn(`Failed refreshing AppCache`, `err`, err)
+				}
 			}
 		}
 	}
@@ -214,6 +222,7 @@ func newAppInfo(file string) (*hyprpanelv1.AppInfo, error) {
 	return a, nil
 }
 
+// New instantiate a new AppCache.
 func New(log hclog.Logger) (*AppCache, error) {
 	a := &AppCache{
 		log:        log,

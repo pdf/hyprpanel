@@ -164,10 +164,12 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 				},
 			})
 			actionCb := func(action gio.SimpleAction, param uintptr) {
-				i.bar.panel.hypr.Dispatch(hypripc.DispatchFocusWindow, `address:`+c.Address)
+				if err := i.bar.panel.hypr.Dispatch(hypripc.DispatchFocusWindow, `address:`+c.Address); err != nil {
+					log.Debug(`Focus window failed`, `module`, style.TaskbarID, `err`, err)
+				}
 			}
 			i.menuRefs.AddRef(func() {
-				glib.UnrefCallback(&actionCb)
+				unrefCallback(&actionCb)
 			})
 			var action *gio.SimpleAction
 			if i.bar.cfg.GroupTasks && len(i.clients) > 1 {
@@ -211,7 +213,7 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 			}
 		}
 		i.menuRefs.AddRef(func() {
-			glib.UnrefCallback(&actionCb)
+			unrefCallback(&actionCb)
 		})
 		action := gio.NewSimpleAction(actionName, nil)
 		action.SetEnabled(true)
@@ -248,7 +250,7 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 				}
 			}
 			i.menuRefs.AddRef(func() {
-				glib.UnrefCallback(&actionCb)
+				unrefCallback(&actionCb)
 			})
 			action := gio.NewSimpleAction(actionName, nil)
 			action.SetEnabled(true)
@@ -278,10 +280,12 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 			},
 		})
 		actionCb := func(action gio.SimpleAction, param uintptr) {
-			i.bar.panel.hypr.Dispatch(hypripc.DispatchCloseWindow, `address:`+id)
+			if err := i.bar.panel.hypr.Dispatch(hypripc.DispatchCloseWindow, `address:`+id); err != nil {
+				log.Debug(`Close window failed`, `module`, style.TaskbarID, `err`, err)
+			}
 		}
 		i.menuRefs.AddRef(func() {
-			glib.UnrefCallback(&actionCb)
+			unrefCallback(&actionCb)
 		})
 		action := gio.NewSimpleAction(actionName, nil)
 		action.SetEnabled(true)
@@ -547,7 +551,7 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 		}
 	}
 	i.AddRef(func() {
-		glib.UnrefCallback(&clickCb)
+		unrefCallback(&clickCb)
 	})
 	clickController.ConnectReleased(&clickCb)
 	i.wrapper.AddController(&clickController.EventController)
@@ -561,10 +565,10 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 
 	motionController := gtk.NewEventControllerMotion()
 	i.AddRef(func() {
-		glib.UnrefCallback(&enterCb)
+		unrefCallback(&enterCb)
 	})
 	i.AddRef(func() {
-		glib.UnrefCallback(&leaveCb)
+		unrefCallback(&leaveCb)
 	})
 	motionController.ConnectEnter(&enterCb)
 	motionController.ConnectLeave(&leaveCb)
@@ -581,13 +585,13 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 				if idx == 0 {
 					idx = len(i.sortedClients) - 1
 				} else {
-					idx -= 1
+					idx--
 				}
 			} else {
 				if idx == len(i.sortedClients)-1 {
 					idx = 0
 				} else {
-					idx += 1
+					idx++
 				}
 			}
 

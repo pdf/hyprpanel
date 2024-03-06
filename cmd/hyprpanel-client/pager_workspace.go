@@ -4,7 +4,6 @@ import (
 	"math"
 
 	"github.com/jwijenbergh/puregotk/v4/gdk"
-	"github.com/jwijenbergh/puregotk/v4/glib"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"github.com/jwijenbergh/puregotk/v4/pango"
 	"github.com/pdf/hyprpanel/internal/hypripc"
@@ -132,11 +131,13 @@ func (w *pagerWorkspace) build(container *gtk.Box) error {
 	clickCb := func(ctrl gtk.GestureClick, _ int, _, _ float64) {
 		switch ctrl.GetCurrentButton() {
 		case uint(gdk.BUTTON_PRIMARY):
-			w.pager.panel.hypr.Dispatch(hypripc.DispatchWorkspace, `name:`+w.name)
+			if err := w.pager.panel.hypr.Dispatch(hypripc.DispatchWorkspace, `name:`+w.name); err != nil {
+				log.Warn(`Switch workspace failed`, `module`, style.PagerID, `err`, err)
+			}
 		}
 	}
 	w.AddRef(func() {
-		glib.UnrefCallback(&clickCb)
+		unrefCallback(&clickCb)
 	})
 	clickController := gtk.NewGestureClick()
 	clickController.ConnectReleased(&clickCb)

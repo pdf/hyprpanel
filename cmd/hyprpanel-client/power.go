@@ -24,26 +24,26 @@ type power struct {
 	icon      *gtk.Image
 }
 
-func (a *power) update(evt *eventv1.PowerChangeValue) error {
+func (p *power) update(evt *eventv1.PowerChangeValue) error {
 	var err error
 
 	defer func() {
-		a.data = evt
+		p.data = evt
 	}()
 
-	if a.data == nil || a.data.Icon != evt.Icon {
-		if a.icon != nil {
-			icon := a.icon
+	if p.data == nil || p.data.Icon != evt.Icon {
+		if p.icon != nil {
+			icon := p.icon
 			defer icon.Unref()
-			a.icon = nil
+			p.icon = nil
 		}
-		a.icon, err = createIcon(evt.Icon, int(a.cfg.IconSize), a.cfg.IconSymbolic, nil)
+		p.icon, err = createIcon(evt.Icon, int(p.cfg.IconSize), p.cfg.IconSymbolic, nil)
 
 		if err != nil {
 			return err
 		}
 
-		a.container.SetCenterWidget(&a.icon.Widget)
+		p.container.SetCenterWidget(&p.icon.Widget)
 	}
 
 	var tooltip strings.Builder
@@ -83,63 +83,63 @@ func (a *power) update(evt *eventv1.PowerChangeValue) error {
 		tooltip.WriteString(fmt.Sprintf(" (%d%%)", evt.Percentage))
 	}
 
-	if a.data == nil || a.tooltip != tooltip.String() {
-		a.tooltip = tooltip.String()
-		a.container.SetTooltipText(a.tooltip)
+	if p.data == nil || p.tooltip != tooltip.String() {
+		p.tooltip = tooltip.String()
+		p.container.SetTooltipText(p.tooltip)
 	}
 
-	a.data = evt
+	p.data = evt
 
 	return nil
 }
 
-func (a *power) build(container *gtk.Box) error {
-	a.container = gtk.NewCenterBox()
-	a.container.SetName(style.PowerID)
-	a.container.AddCssClass(style.ModuleClass)
+func (p *power) build(container *gtk.Box) error {
+	p.container = gtk.NewCenterBox()
+	p.container.SetName(style.PowerID)
+	p.container.AddCssClass(style.ModuleClass)
 
 	scrollCb := func(_ gtk.EventControllerScroll, dx, dy float64) bool {
 		if dy < 0 {
-			if err := a.panel.host.BrightnessAdjust(``, eventv1.Direction_DIRECTION_UP); err != nil {
+			if err := p.panel.host.BrightnessAdjust(``, eventv1.Direction_DIRECTION_UP); err != nil {
 				log.Warn(`Brightness adjustment failed`, `module`, style.PowerID, `err`, err)
 			}
 		} else {
-			if err := a.panel.host.BrightnessAdjust(``, eventv1.Direction_DIRECTION_DOWN); err != nil {
+			if err := p.panel.host.BrightnessAdjust(``, eventv1.Direction_DIRECTION_DOWN); err != nil {
 				log.Warn(`Brightness adjustment failed`, `module`, style.PowerID, `err`, err)
 			}
 		}
 
 		return true
 	}
-	a.AddRef(func() {
-		glib.UnrefCallback(&scrollCb)
+	p.AddRef(func() {
+		unrefCallback(&scrollCb)
 	})
 
 	scrollController := gtk.NewEventControllerScroll(gtk.EventControllerScrollVerticalValue | gtk.EventControllerScrollDiscreteValue)
 	scrollController.ConnectScroll(&scrollCb)
-	a.container.AddController(&scrollController.EventController)
+	p.container.AddController(&scrollController.EventController)
 
-	container.Append(&a.container.Widget)
+	container.Append(&p.container.Widget)
 
-	go a.watch()
+	go p.watch()
 
 	return nil
 }
 
-func (a *power) events() chan<- *eventv1.Event {
-	return a.eventCh
+func (p *power) events() chan<- *eventv1.Event {
+	return p.eventCh
 }
 
-func (a *power) watch() {
+func (p *power) watch() {
 	for {
 		select {
-		case <-a.quitCh:
+		case <-p.quitCh:
 			return
 		default:
 			select {
-			case <-a.quitCh:
+			case <-p.quitCh:
 				return
-			case evt := <-a.eventCh:
+			case evt := <-p.eventCh:
 				switch evt.Kind {
 				case eventv1.EventKind_EVENT_KIND_DBUS_POWER_CHANGE:
 					data := &eventv1.PowerChangeValue{}
@@ -151,14 +151,14 @@ func (a *power) watch() {
 						log.Warn(`Invalid event`, `module`, style.PowerID, `err`, err, `evt`, evt)
 						continue
 					}
-					if data.Id != eventv1.PowerDefaultId {
+					if data.Id != eventv1.PowerDefaultID {
 						continue
 					}
 
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
-						defer glib.UnrefCallback(&cb)
-						if err := a.update(data); err != nil {
+						defer unrefCallback(&cb)
+						if err := p.update(data); err != nil {
 							log.Warn(`Failed updating`, `module`, style.PowerID, `err`, err)
 						}
 						return false
@@ -171,12 +171,12 @@ func (a *power) watch() {
 	}
 }
 
-func (a *power) close(container *gtk.Box) {
-	defer a.Unref()
+func (p *power) close(container *gtk.Box) {
+	defer p.Unref()
 	log.Debug(`Closing module on request`, `module`, style.PowerID)
-	container.Remove(&a.container.Widget)
-	if a.icon != nil {
-		a.icon.Unref()
+	container.Remove(&p.container.Widget)
+	if p.icon != nil {
+		p.icon.Unref()
 	}
 }
 

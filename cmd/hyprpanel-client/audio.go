@@ -19,12 +19,12 @@ type audio struct {
 	container          *gtk.CenterBox
 	icon               *gtk.Image
 	tooltip            string
-	defaultSinkId      string
+	defaultSinkID      string
 	defaultSinkName    string
 	defaultSinkVolume  int32
 	defaultSinkPercent float64
 	defaultSinkMute    bool
-	defaultSourceId    string
+	defaultSourceID    string
 	eventCh            chan *eventv1.Event
 	quitCh             chan struct{}
 }
@@ -94,11 +94,11 @@ func (a *audio) build(container *gtk.Box) error {
 
 	scrollCb := func(_ gtk.EventControllerScroll, dx, dy float64) bool {
 		if dy < 0 {
-			if err := a.panel.host.AudioSinkVolumeAdjust(a.defaultSinkId, eventv1.Direction_DIRECTION_UP); err != nil {
+			if err := a.panel.host.AudioSinkVolumeAdjust(a.defaultSinkID, eventv1.Direction_DIRECTION_UP); err != nil {
 				log.Warn(`Volume adjustment failed`, `module`, style.AudioID, `err`, err)
 			}
 		} else {
-			if err := a.panel.host.AudioSinkVolumeAdjust(a.defaultSinkId, eventv1.Direction_DIRECTION_DOWN); err != nil {
+			if err := a.panel.host.AudioSinkVolumeAdjust(a.defaultSinkID, eventv1.Direction_DIRECTION_DOWN); err != nil {
 				log.Warn(`Volume adjustment failed`, `module`, style.AudioID, `err`, err)
 			}
 		}
@@ -106,7 +106,7 @@ func (a *audio) build(container *gtk.Box) error {
 		return true
 	}
 	a.AddRef(func() {
-		glib.UnrefCallback(&scrollCb)
+		unrefCallback(&scrollCb)
 	})
 
 	scrollController := gtk.NewEventControllerScroll(gtk.EventControllerScrollVerticalValue | gtk.EventControllerScrollDiscreteValue)
@@ -120,17 +120,17 @@ func (a *audio) build(container *gtk.Box) error {
 				log.Warn(`Failed launching application`, `module`, style.AudioID, `cmd`, a.cfg.CommandMixer, `err`, err)
 			}
 		case uint(gdk.BUTTON_SECONDARY):
-			if err := a.panel.host.AudioSinkMuteToggle(a.defaultSinkId); err != nil {
+			if err := a.panel.host.AudioSinkMuteToggle(a.defaultSinkID); err != nil {
 				log.Warn(`Mute toggle failed`, `module`, style.AudioID, `err`, err)
 			}
 		case uint(gdk.BUTTON_MIDDLE):
-			if err := a.panel.host.AudioSourceMuteToggle(a.defaultSourceId); err != nil {
+			if err := a.panel.host.AudioSourceMuteToggle(a.defaultSourceID); err != nil {
 				log.Warn(`Mute toggle failed`, `module`, style.AudioID, `err`, err)
 			}
 		}
 	}
 	a.AddRef(func() {
-		glib.UnrefCallback(&clickCb)
+		unrefCallback(&clickCb)
 	})
 
 	clickController := gtk.NewGestureClick()
@@ -179,9 +179,9 @@ func (a *audio) watch() {
 
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
-						defer glib.UnrefCallback(&cb)
-						if data.Default && (data.Id != a.defaultSinkId || data.Name != a.defaultSinkName) {
-							a.defaultSinkId = data.Id
+						defer unrefCallback(&cb)
+						if data.Default && (data.Id != a.defaultSinkID || data.Name != a.defaultSinkName) {
+							a.defaultSinkID = data.Id
 							a.defaultSinkName = data.Name
 						}
 						a.defaultSinkPercent = data.Percent
@@ -207,9 +207,9 @@ func (a *audio) watch() {
 
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
-						defer glib.UnrefCallback(&cb)
-						if data.Default && data.Id != a.defaultSourceId {
-							a.defaultSourceId = data.Id
+						defer unrefCallback(&cb)
+						if data.Default && data.Id != a.defaultSourceID {
+							a.defaultSourceID = data.Id
 						}
 						return false
 					}

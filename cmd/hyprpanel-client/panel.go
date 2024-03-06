@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/jwijenbergh/puregotk/v4/gdk"
 	"github.com/jwijenbergh/puregotk/v4/gio"
-	"github.com/jwijenbergh/puregotk/v4/glib"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	gtk4layershell "github.com/pdf/hyprpanel/internal/gtk4-layer-shell"
 	"github.com/pdf/hyprpanel/internal/hypripc"
@@ -178,20 +177,20 @@ func (p *panel) initWindow() error {
 func (p *panel) build() error {
 	var (
 		panelOrientation, containerOrientation gtk.Orientation
-		panelCssClass                          string
+		panelCSSClass                          string
 	)
 	if p.orientation == gtk.OrientationHorizontalValue {
 		panelOrientation = gtk.OrientationVerticalValue
-		panelCssClass = style.HorizontalClass
+		panelCSSClass = style.HorizontalClass
 		containerOrientation = gtk.OrientationHorizontalValue
 	} else {
 		panelOrientation = gtk.OrientationHorizontalValue
-		panelCssClass = style.VerticalClass
+		panelCSSClass = style.VerticalClass
 		containerOrientation = gtk.OrientationVerticalValue
 	}
 	panelMain := gtk.NewBox(panelOrientation, 0)
 	p.AddRef(panelMain.Unref)
-	panelMain.AddCssClass(panelCssClass)
+	panelMain.AddCssClass(panelCSSClass)
 	p.win.SetChild(&panelMain.Widget)
 
 	switch p.cfg.Edge {
@@ -319,7 +318,7 @@ func newPanel() (*panel, error) {
 
 	var activate func(gio.Application)
 	activate = func(_ gio.Application) {
-		defer glib.UnrefCallback(&activate)
+		defer unrefCallback(&activate)
 		if err := p.initWindow(); err != nil {
 			log.Error(`failed initializing window`, `err`, err)
 			p.app.Quit()

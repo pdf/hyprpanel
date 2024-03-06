@@ -1,3 +1,4 @@
+// Package audio provides a high level pulseaudio API.
 package audio
 
 import (
@@ -16,14 +17,15 @@ import (
 const (
 	pulseClientName    = `hyprpanel`
 	pulseIconName      = `audio-x-generic`
-	hudId              = `audio`
+	hudID              = `audio`
 	exceedVolumeFactor = 1.3
 )
 
 var (
-	volumeMax int32 = int32(math.Floor(float64(proto.VolumeNorm) * exceedVolumeFactor))
+	volumeMax = int32(math.Floor(float64(proto.VolumeNorm) * exceedVolumeFactor))
 )
 
+// Client for pulseaudio.
 type Client struct {
 	cfg   *configv1.Config_Audio
 	log   hclog.Logger
@@ -40,6 +42,7 @@ type Client struct {
 	quitCh   chan struct{}
 }
 
+// SinkVolumeAdjust increases or decreases a sink's volume.
 func (c *Client) SinkVolumeAdjust(sinkName string, direction eventv1.Direction) error {
 	info := proto.GetSinkInfoReply{}
 	if err := c.proto.Request(&proto.GetSinkInfo{SinkIndex: proto.Undefined, SinkName: sinkName}, &info); err != nil {
@@ -88,6 +91,7 @@ func (c *Client) SinkVolumeAdjust(sinkName string, direction eventv1.Direction) 
 	return nil
 }
 
+// SinkMuteToggle toggles a sink's muted status.
 func (c *Client) SinkMuteToggle(sinkName string) error {
 	info := proto.GetSinkInfoReply{}
 	if err := c.proto.Request(&proto.GetSinkInfo{SinkIndex: proto.Undefined, SinkName: sinkName}, &info); err != nil {
@@ -101,9 +105,10 @@ func (c *Client) SinkMuteToggle(sinkName string) error {
 	return nil
 }
 
-func (c *Client) SourceVolumeAdjust(sinkName string, direction eventv1.Direction) error {
+// SourceVolumeAdjust increases or decreases a source's volume.
+func (c *Client) SourceVolumeAdjust(sourceName string, direction eventv1.Direction) error {
 	info := proto.GetSourceInfoReply{}
-	if err := c.proto.Request(&proto.GetSourceInfo{SourceIndex: proto.Undefined, SourceName: sinkName}, &info); err != nil {
+	if err := c.proto.Request(&proto.GetSourceInfo{SourceIndex: proto.Undefined, SourceName: sourceName}, &info); err != nil {
 		return err
 	}
 
@@ -137,31 +142,33 @@ func (c *Client) SourceVolumeAdjust(sinkName string, direction eventv1.Direction
 	}
 
 	if info.Mute && direction == eventv1.Direction_DIRECTION_UP {
-		if err := c.proto.Request(&proto.SetSourceMute{SourceIndex: proto.Undefined, SourceName: sinkName, Mute: false}, nil); err != nil {
+		if err := c.proto.Request(&proto.SetSourceMute{SourceIndex: proto.Undefined, SourceName: sourceName, Mute: false}, nil); err != nil {
 			return err
 		}
 	}
 
-	if err := c.proto.Request(&proto.SetSourceVolume{SourceIndex: proto.Undefined, SourceName: sinkName, ChannelVolumes: info.ChannelVolumes}, nil); err != nil {
+	if err := c.proto.Request(&proto.SetSourceVolume{SourceIndex: proto.Undefined, SourceName: sourceName, ChannelVolumes: info.ChannelVolumes}, nil); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (c *Client) SourceMuteToggle(sinkName string) error {
+// SourceMuteToggle toggles a source's muted status.
+func (c *Client) SourceMuteToggle(sourceName string) error {
 	info := proto.GetSourceInfoReply{}
-	if err := c.proto.Request(&proto.GetSourceInfo{SourceIndex: proto.Undefined, SourceName: sinkName}, &info); err != nil {
+	if err := c.proto.Request(&proto.GetSourceInfo{SourceIndex: proto.Undefined, SourceName: sourceName}, &info); err != nil {
 		return err
 	}
 
-	if err := c.proto.Request(&proto.SetSourceMute{SourceIndex: proto.Undefined, SourceName: sinkName, Mute: !info.Mute}, nil); err != nil {
+	if err := c.proto.Request(&proto.SetSourceMute{SourceIndex: proto.Undefined, SourceName: sourceName, Mute: !info.Mute}, nil); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// Close the client.
 func (c *Client) Close() error {
 	return c.conn.Close()
 }
@@ -241,7 +248,7 @@ func (c *Client) pollSink(idx uint32, name string) error {
 	}
 
 	hudValue := &eventv1.HudNotificationValue{
-		Id:           hudId,
+		Id:           hudID,
 		Icon:         icon,
 		IconSymbolic: true,
 		Title:        info.Device,
@@ -338,7 +345,7 @@ func (c *Client) pollSource(idx uint32, name string) error {
 	}
 
 	hudValue := &eventv1.HudNotificationValue{
-		Id:           hudId,
+		Id:           hudID,
 		Icon:         icon,
 		IconSymbolic: true,
 		Title:        info.Device,
@@ -443,6 +450,7 @@ func (c *Client) watch() {
 	}
 }
 
+// New instantiates a new pulseaudio client.
 func New(cfg *configv1.Config_Audio, logger hclog.Logger) (*Client, <-chan *eventv1.Event, error) {
 	p, conn, err := proto.Connect("")
 	if err != nil {

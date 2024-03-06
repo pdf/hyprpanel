@@ -87,7 +87,7 @@ func (c *clock) build(container *gtk.Box) error {
 		}
 	}
 	c.AddRef(func() {
-		glib.UnrefCallback(&clickCb)
+		unrefCallback(&clickCb)
 	})
 	clickController.ConnectReleased(&clickCb)
 	c.container.AddController(&clickController.EventController)

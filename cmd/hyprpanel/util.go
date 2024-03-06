@@ -48,11 +48,10 @@ func findLayerShell() (string, error) {
 		return ``, fmt.Errorf("unsupported architecture: %s", runtime.GOARCH)
 	}
 
-	if path, err := findLayerShellBySearchPath(searchPaths); err != nil {
-		return findLayerShellByPkgconfig()
-	} else {
+	if path, err := findLayerShellBySearchPath(searchPaths); err == nil {
 		return path, nil
 	}
+	return findLayerShellByPkgconfig()
 }
 
 func findLayerShellBySearchPath(paths []string) (string, error) {

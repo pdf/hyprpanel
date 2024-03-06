@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	brightnessHudId = `brightness`
+	brightnessHudID = `brightness`
 
 	brightnessSysfsDevice = `device`
 
@@ -41,7 +41,7 @@ type brightness struct {
 	quitCh  chan struct{}
 }
 
-func (b *brightness) brightnessAdjust(devName string, direction eventv1.Direction) error {
+func (b *brightness) Adjust(devName string, direction eventv1.Direction) error {
 	if devName != `` {
 		return b.adjust(filepath.Join(brightnessBase, devName), direction)
 	}
@@ -183,12 +183,10 @@ func (b *brightness) pollBrightness(path string) error {
 		icon = `display-brightness-medium`
 	case cur > int(b.cfg.MinBrightness):
 		icon = `display-brightness-low`
-	default:
-		icon = `display-brightness-off`
 	}
 
 	hudValue := &eventv1.HudNotificationValue{
-		Id:           brightnessHudId,
+		Id:           brightnessHudID,
 		Icon:         icon,
 		IconSymbolic: true,
 		Title:        brightnessValue.Id,

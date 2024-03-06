@@ -41,6 +41,7 @@ func newRefTracker() *refTracker {
 	}
 }
 
+/*
 type callbackStore[T any] struct {
 	mu   sync.RWMutex
 	ptrs map[uintptr]*T
@@ -80,6 +81,7 @@ func (c *callbackStore[T]) Unref(ptr uintptr) {
 }
 
 var cbString = &callbackStore[string]{ptrs: make(map[uintptr]*string)}
+*/
 
 func gdkMonitorFromHypr(monitor *hypripc.Monitor) (*gdk.Monitor, error) {
 	disp := gdk.DisplayGetDefault()
@@ -206,4 +208,10 @@ func createIcon(icon string, size int, symbolic bool, fallbacks []string, search
 	imageWidget.Widget.Cast(&image)
 	image.SetPixelSize(size)
 	return &image, nil
+}
+
+func unrefCallback(fnPtr any) {
+	if err := glib.UnrefCallback(fnPtr); err != nil {
+		log.Warn(`UnrefCallback failed`, `err`, err)
+	}
 }

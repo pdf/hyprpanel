@@ -236,7 +236,7 @@ func (t *taskbar) build(container *gtk.Box) error {
 		t.updateItemScale(len(t.items))
 	}
 	t.AddRef(func() {
-		glib.UnrefCallback(&scaleCb)
+		unrefCallback(&scaleCb)
 	})
 
 	if t.panel.orientation == gtk.OrientationHorizontalValue {
@@ -252,7 +252,7 @@ func (t *taskbar) build(container *gtk.Box) error {
 
 	var updateCb glib.SourceFunc
 	updateCb = func(uintptr) bool {
-		defer glib.UnrefCallback(&updateCb)
+		defer unrefCallback(&updateCb)
 
 		for _, c := range t.cfg.Pinned {
 			if err := t.addItem(c, nil, true); err != nil {
@@ -313,7 +313,7 @@ func (t *taskbar) watch() {
 
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
-						defer glib.UnrefCallback(&cb)
+						defer unrefCallback(&cb)
 						if err := t.deleteClient(addr); err != nil {
 							log.Debug(`Failed deleting client`, `module`, style.TaskbarID, `evt`, evt, `err`, err)
 							return false
@@ -340,7 +340,7 @@ func (t *taskbar) watch() {
 
 				var cb glib.SourceFunc
 				cb = func(uintptr) bool {
-					defer glib.UnrefCallback(&cb)
+					defer unrefCallback(&cb)
 					if err := t.update(); err != nil {
 						log.Debug(`Failed updating`, `module`, style.TaskbarID, `err`, err)
 					}

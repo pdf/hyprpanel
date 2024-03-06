@@ -1,3 +1,4 @@
+// Package hypripc provides an API for interacting with the Hyprland IPC bus
 package hypripc
 
 import (
@@ -18,39 +19,70 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+// Event enum.
 type Event string
 
 const (
-	EventUnspecified        = `unspecified`
-	EventWorkspace          = `workspace`
-	EventFocusedmon         = `focusedmon`
-	EventActivewindow       = `activewindow`
-	EventActivewindowv2     = `activewindowv2`
-	EventFullscreen         = `fullscreen`
-	EventMonitorremoved     = `monitorremoved`
-	EventMonitoradded       = `monitoradded`
-	EventCreateworkspace    = `createworkspace`
-	EventDestroyworkspace   = `destroyworkspace`
-	EventMoveworkspace      = `moveworkspace`
-	EventRenameworkspace    = `renameworkspace`
-	EventActivespecial      = `activespecial`
-	EventActivelayout       = `activelayout`
-	EventOpenwindow         = `openwindow`
-	EventClosewindow        = `closewindow`
-	EventMovewindow         = `movewindow`
-	EventOpenlayer          = `openlayer`
-	EventCloselayer         = `closelayer`
-	EventSubmap             = `submap`
-	EventChangefloatingmode = `changefloatingmode`
-	EventUrgent             = `urgent`
-	EventMinimize           = `minimize`
-	EventScreencast         = `screencast`
-	EventWindowtitle        = `windowtitle`
-	EventIgnoregrouplock    = `ignoregrouplock`
-	EventLockgroups         = `lockgroups`
+	// EventUnspecified is the default catch-all event.
+	EventUnspecified = `unspecified`
+	// EventWorkspace event identifier.
+	EventWorkspace = `workspace`
+	// EventFocusedMon event identifier.
+	EventFocusedMon = `focusedmon`
+	// EventActiveWindow event identifier.
+	EventActiveWindow = `activewindow`
+	// EventActiveWindowV2 event identifier.
+	EventActiveWindowV2 = `activewindowv2`
+	// EventFullscreen event identifier.
+	EventFullscreen = `fullscreen`
+	// EventMonitorRemoved event identifier.
+	EventMonitorRemoved = `monitorremoved`
+	// EventMonitorAdded event identifier.
+	EventMonitorAdded = `monitoradded`
+	// EventCreateWorkspace event identifier.
+	EventCreateWorkspace = `createworkspace`
+	// EventDestroyWorkspace event identifier.
+	EventDestroyWorkspace = `destroyworkspace`
+	// EventMoveWorkspace event identifier.
+	EventMoveWorkspace = `moveworkspace`
+	// EventRenameWorkspace event identifier.
+	EventRenameWorkspace = `renameworkspace`
+	// EventActiveSpecial event identifier.
+	EventActiveSpecial = `activespecial`
+	// EventActiveLayout event identifier.
+	EventActiveLayout = `activelayout`
+	// EventOpenWindow event identifier.
+	EventOpenWindow = `openwindow`
+	// EventCloseWindow event identifier.
+	EventCloseWindow = `closewindow`
+	// EventMoveWindow event identifier.
+	EventMoveWindow = `movewindow`
+	// EventOpenLayer event identifier.
+	EventOpenLayer = `openlayer`
+	// EventCloseLayer event identifier.
+	EventCloseLayer = `closelayer`
+	// EventSubmap event identifier.
+	EventSubmap = `submap`
+	// EventChangeFloatingMode event identifier.
+	EventChangeFloatingMode = `changefloatingmode`
+	// EventUrgent event identifier.
+	EventUrgent = `urgent`
+	// EventMinimize event identifier.
+	EventMinimize = `minimize`
+	// EventScreencast event identifier.
+	EventScreencast = `screencast`
+	// EventWindowTitle event identifier.
+	EventWindowTitle = `windowtitle`
+	// EventIgnoreGroupLock event identifier.
+	EventIgnoreGroupLock = `ignoregrouplock`
+	// EventLockGroups event identifier.
+	EventLockGroups = `lockgroups`
 
-	DispatchWorkspace   = `workspace`
+	// DispatchWorkspace dispatcher identifier.
+	DispatchWorkspace = `workspace`
+	// DispatchFocusWindow dispatcher identifier.
 	DispatchFocusWindow = `focuswindow`
+	// DispatchCloseWindow dispatcher identifier.
 	DispatchCloseWindow = `closewindow`
 )
 
@@ -58,8 +90,10 @@ var (
 	eventMatch = regexp.MustCompile(`^(?P<Event>[^>]+)>>(?P<Value>.*)$`)
 )
 
-type cancelFunc func()
+// CancelFunc cancels a subscription when called.
+type CancelFunc func()
 
+// HyprIPC client.
 type HyprIPC struct {
 	log           hclog.Logger
 	subscriptions map[Event]map[uuid.UUID]chan *eventv1.Event
@@ -68,6 +102,7 @@ type HyprIPC struct {
 	mu            sync.RWMutex
 }
 
+// ActiveWindow returns the currently active window client.
 func (h *HyprIPC) ActiveWindow() (*Client, error) {
 	res, err := h.send(`activewindow`)
 	if err != nil {
@@ -82,6 +117,7 @@ func (h *HyprIPC) ActiveWindow() (*Client, error) {
 	return client, nil
 }
 
+// ActiveWorkspace returns the currently actie workspace.
 func (h *HyprIPC) ActiveWorkspace() (*Workspace, error) {
 	res, err := h.send(`activeworkspace`)
 	if err != nil {
@@ -96,6 +132,7 @@ func (h *HyprIPC) ActiveWorkspace() (*Workspace, error) {
 	return workspace, nil
 }
 
+// Clients returns a list of all active client windows,
 func (h *HyprIPC) Clients() ([]Client, error) {
 	res, err := h.send(`clients`)
 	if err != nil {
@@ -110,6 +147,7 @@ func (h *HyprIPC) Clients() ([]Client, error) {
 	return clients, nil
 }
 
+// Monitors returns a list of active monitors.
 func (h *HyprIPC) Monitors() ([]Monitor, error) {
 	res, err := h.send(`monitors all`)
 	if err != nil {
@@ -124,6 +162,7 @@ func (h *HyprIPC) Monitors() ([]Monitor, error) {
 	return monitors, nil
 }
 
+// Workspaces returns a list of all active workspaces.
 func (h *HyprIPC) Workspaces() ([]Workspace, error) {
 	res, err := h.send(`workspaces`)
 	if err != nil {
@@ -138,6 +177,7 @@ func (h *HyprIPC) Workspaces() ([]Workspace, error) {
 	return workspaces, nil
 }
 
+// Dispatch calls a dispatcher.
 func (h *HyprIPC) Dispatch(args ...string) error {
 	_, err := h.send(append([]string{`dispatch`}, args...)...)
 	return err
@@ -157,32 +197,43 @@ func (h *HyprIPC) send(args ...string) ([]byte, error) {
 	return io.ReadAll(ctrl)
 }
 
-func (h *HyprIPC) Subscribe(evt Event) (chan *eventv1.Event, cancelFunc) {
+// Subscribe returns a channel that will emit the specified event(s) when they arrive.
+func (h *HyprIPC) Subscribe(evt ...Event) (chan *eventv1.Event, CancelFunc) {
 	id := uuid.New()
 	ch := make(chan *eventv1.Event)
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if _, ok := h.subscriptions[evt]; !ok {
-		h.subscriptions[evt] = make(map[uuid.UUID]chan *eventv1.Event, 0)
+	if len(evt) == 0 {
+		evt = []Event{EventUnspecified}
 	}
 
-	h.subscriptions[evt][id] = ch
+	for _, e := range evt {
+		if _, ok := h.subscriptions[e]; !ok {
+			h.subscriptions[e] = make(map[uuid.UUID]chan *eventv1.Event, 0)
+		}
+
+		h.subscriptions[e][id] = ch
+	}
 
 	return ch, func() {
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		delete(h.subscriptions[evt], id)
+		for _, e := range evt {
+			delete(h.subscriptions[e], id)
+		}
 		close(ch)
 	}
 }
 
+// StartEvents begins the event loop.
 func (h *HyprIPC) StartEvents() {
 	go h.readloop()
 	go h.eventloop()
 }
 
+// Close terminates all connections, event loops, and closes all subscriptions.
 func (h *HyprIPC) Close() {
 	h.evtConn.Close()
 	close(h.evtBus)
@@ -233,6 +284,7 @@ func (h *HyprIPC) readloop() {
 	}
 }
 
+// New instantiates a new HyprIPC client
 func New(log hclog.Logger) (*HyprIPC, error) {
 	evtConn, err := net.Dial(`unix`, fmt.Sprintf("/tmp/hypr/%s/.socket2.sock", os.Getenv(`HYPRLAND_INSTANCE_SIGNATURE`)))
 	if err != nil {
@@ -253,58 +305,58 @@ func hyprToEvent(name Event, value string) (*eventv1.Event, error) {
 	switch name {
 	case EventWorkspace:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_WORKSPACE, value)
-	case EventFocusedmon:
+	case EventFocusedMon:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_FOCUSEDMON, value)
-	case EventActivewindow:
+	case EventActiveWindow:
 		s := strings.SplitN(value, `,`, 4)
 		if len(s) != 2 {
 			return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_ACTIVEWINDOW, value)
 		}
 		data, err := anypb.New(&eventv1.HyprActiveWindowValue{Class: s[0], Title: s[1]})
 		if err != nil {
-			return nil, fmt.Errorf("invalid event (%s): %w", EventActivewindow, err)
+			return nil, fmt.Errorf("invalid event (%s): %w", EventActiveWindow, err)
 		}
 		return &eventv1.Event{
 			Kind: eventv1.EventKind_EVENT_KIND_HYPR_ACTIVEWINDOW,
 			Data: data,
 		}, nil
-	case EventActivewindowv2:
+	case EventActiveWindowV2:
 		value = `0x` + value
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_ACTIVEWINDOWV2, value)
 	case EventFullscreen:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_FULLSCREEN, value)
-	case EventMonitorremoved:
+	case EventMonitorRemoved:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_MONITORREMOVED, value)
-	case EventMonitoradded:
+	case EventMonitorAdded:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_MONITORADDED, value)
-	case EventCreateworkspace:
+	case EventCreateWorkspace:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_CREATEWORKSPACE, value)
-	case EventDestroyworkspace:
+	case EventDestroyWorkspace:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_DESTROYWORKSPACE, value)
-	case EventMoveworkspace:
+	case EventMoveWorkspace:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_MOVEWORKSPACE, value)
-	case EventRenameworkspace:
+	case EventRenameWorkspace:
 		s := strings.SplitN(value, `,`, 2)
 		if len(s) != 2 {
-			return nil, fmt.Errorf("invalid event (%s)", EventRenameworkspace)
+			return nil, fmt.Errorf("invalid event (%s)", EventRenameWorkspace)
 		}
 		id, err := strconv.Atoi(s[0])
 		if err != nil {
-			return nil, fmt.Errorf("invalid event (%s): %w", EventRenameworkspace, err)
+			return nil, fmt.Errorf("invalid event (%s): %w", EventRenameWorkspace, err)
 		}
 		data, err := anypb.New(&eventv1.HyprRenameWorkspaceValue{Id: int32(id), Name: s[1]})
 		if err != nil {
-			return nil, fmt.Errorf("invalid event (%s): %w", EventRenameworkspace, err)
+			return nil, fmt.Errorf("invalid event (%s): %w", EventRenameWorkspace, err)
 		}
 		return &eventv1.Event{
 			Kind: eventv1.EventKind_EVENT_KIND_HYPR_RENAMEWORKSPACE,
 			Data: data,
 		}, nil
-	case EventActivespecial:
+	case EventActiveSpecial:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_ACTIVESPECIAL, value)
-	case EventActivelayout:
+	case EventActiveLayout:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_ACTIVELAYOUT, value)
-	case EventOpenwindow:
+	case EventOpenWindow:
 		s := strings.SplitN(value, `,`, 4)
 		if len(s) != 4 {
 			return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_OPENWINDOW, value)
@@ -316,24 +368,24 @@ func hyprToEvent(name Event, value string) (*eventv1.Event, error) {
 			Title:         s[3],
 		})
 		if err != nil {
-			return nil, fmt.Errorf("invalid event (%s): %w", EventOpenwindow, err)
+			return nil, fmt.Errorf("invalid event (%s): %w", EventOpenWindow, err)
 		}
 		return &eventv1.Event{
 			Kind: eventv1.EventKind_EVENT_KIND_HYPR_OPENWINDOW,
 			Data: data,
 		}, nil
-	case EventClosewindow:
+	case EventCloseWindow:
 		value = `0x` + value
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_CLOSEWINDOW, value)
-	case EventMovewindow:
+	case EventMoveWindow:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_MOVEWINDOW, value)
-	case EventOpenlayer:
+	case EventOpenLayer:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_OPENLAYER, value)
-	case EventCloselayer:
+	case EventCloseLayer:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_CLOSELAYER, value)
 	case EventSubmap:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_SUBMAP, value)
-	case EventChangefloatingmode:
+	case EventChangeFloatingMode:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_CHANGEFLOATINGMODE, value)
 	case EventUrgent:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_URGENT, value)
@@ -341,11 +393,11 @@ func hyprToEvent(name Event, value string) (*eventv1.Event, error) {
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_MINIMIZE, value)
 	case EventScreencast:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_SCREENCAST, value)
-	case EventWindowtitle:
+	case EventWindowTitle:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_WINDOWTITLE, value)
-	case EventIgnoregrouplock:
+	case EventIgnoreGroupLock:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_IGNOREGROUPLOCK, value)
-	case EventLockgroups:
+	case EventLockGroups:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_EVENTLOCKGROUPS, value)
 	default:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_UNSPECIFIED, value)

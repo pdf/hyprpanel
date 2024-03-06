@@ -9,8 +9,6 @@ An opinionated panel/shell for the Hyprland compositor.
 
 ## Install
 
-TODO: Binary releases and documentation
-
 ### Dependencies
 
 This project depends on (required):
@@ -25,7 +23,13 @@ Optional dependencies (required for default configuration):
 
 Please ensure that you have these packages installed.
 
-### Install from source
+### Install from Release
+
+Download the [latest release](https://github.com/pdf/hyprpanel/releases/latest) for your operating system and architecture.
+
+Unpack the archive and place the `hyprpanel` and `hyprpanel-client` binaries on your `$PATH`.
+
+### Install from Source
 
 Execute the following (requires the Go toolchain):
 
@@ -52,7 +56,7 @@ You may review the current default configuration at [config/default.json](config
 
 JSON is not my first choice for a human-writable config format, but due to internal protobuf usage this was by far the least painful format to implement.
 
-TODO: Link config documentation here
+For details on the configuration options, please see the [Configuration Reference](https://github.com/pdf/hyprpanel/wiki/Config) in the wiki.
 
 ## Panels
 

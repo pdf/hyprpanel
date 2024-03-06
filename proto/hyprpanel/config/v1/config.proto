@@ -55,11 +55,11 @@ message Config {
 
     message Power {
       bool enabled = 1; // enables power functionality.
-      uint32 low_percent = 2;
-      uint32 critical_percent = 3;
-      string low_command = 4;
-      string critical_command = 5;
-      bool hud_notifications = 6;
+      uint32 low_percent = 2; // percentage below which we should consider low power.
+      uint32 critical_percent = 3; // percentage below which we should consider critical power.
+      string low_command = 4; // command to execute on low power.
+      string critical_command = 5; // command to execute on critical power.
+      bool hud_notifications = 6; // display HUD notifications on power state change or low power.
     }
 
     bool enabled = 1; // if false, no DBUS functionality is available.
@@ -69,8 +69,8 @@ message Config {
     Notifications notifications = 4; // notifications configuration.
     Systray systray = 5; // systray configuration.
     Shortcuts shortcuts = 6; // shortcuts configuration.
-    Brightness brightness = 7;
-    Power power = 8;
+    Brightness brightness = 7; // brightness configuration.
+    Power power = 8; // power configuration.
   }
 
   message Audio {

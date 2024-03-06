@@ -307,8 +307,8 @@ type Config_DBUS struct {
 	Notifications   *Config_DBUS_Notifications `protobuf:"bytes,4,opt,name=notifications,proto3" json:"notifications,omitempty"`                            // notifications configuration.
 	Systray         *Config_DBUS_Systray       `protobuf:"bytes,5,opt,name=systray,proto3" json:"systray,omitempty"`                                        // systray configuration.
 	Shortcuts       *Config_DBUS_Shortcuts     `protobuf:"bytes,6,opt,name=shortcuts,proto3" json:"shortcuts,omitempty"`                                    // shortcuts configuration.
-	Brightness      *Config_DBUS_Brightness    `protobuf:"bytes,7,opt,name=brightness,proto3" json:"brightness,omitempty"`
-	Power           *Config_DBUS_Power         `protobuf:"bytes,8,opt,name=power,proto3" json:"power,omitempty"`
+	Brightness      *Config_DBUS_Brightness    `protobuf:"bytes,7,opt,name=brightness,proto3" json:"brightness,omitempty"`                                  // brightness configuration.
+	Power           *Config_DBUS_Power         `protobuf:"bytes,8,opt,name=power,proto3" json:"power,omitempty"`                                            // power configuration.
 }
 
 func (x *Config_DBUS) Reset() {
@@ -695,12 +695,12 @@ type Config_DBUS_Power struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Enabled          bool   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"` // enables power functionality.
-	LowPercent       uint32 `protobuf:"varint,2,opt,name=low_percent,json=lowPercent,proto3" json:"low_percent,omitempty"`
-	CriticalPercent  uint32 `protobuf:"varint,3,opt,name=critical_percent,json=criticalPercent,proto3" json:"critical_percent,omitempty"`
-	LowCommand       string `protobuf:"bytes,4,opt,name=low_command,json=lowCommand,proto3" json:"low_command,omitempty"`
-	CriticalCommand  string `protobuf:"bytes,5,opt,name=critical_command,json=criticalCommand,proto3" json:"critical_command,omitempty"`
-	HudNotifications bool   `protobuf:"varint,6,opt,name=hud_notifications,json=hudNotifications,proto3" json:"hud_notifications,omitempty"`
+	Enabled          bool   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`                                           // enables power functionality.
+	LowPercent       uint32 `protobuf:"varint,2,opt,name=low_percent,json=lowPercent,proto3" json:"low_percent,omitempty"`                   // percentage below which we should consider low power.
+	CriticalPercent  uint32 `protobuf:"varint,3,opt,name=critical_percent,json=criticalPercent,proto3" json:"critical_percent,omitempty"`    // percentage below which we should consider critical power.
+	LowCommand       string `protobuf:"bytes,4,opt,name=low_command,json=lowCommand,proto3" json:"low_command,omitempty"`                    // command to execute on low power.
+	CriticalCommand  string `protobuf:"bytes,5,opt,name=critical_command,json=criticalCommand,proto3" json:"critical_command,omitempty"`     // command to execute on critical power.
+	HudNotifications bool   `protobuf:"varint,6,opt,name=hud_notifications,json=hudNotifications,proto3" json:"hud_notifications,omitempty"` // display HUD notifications on power state change or low power.
 }
 
 func (x *Config_DBUS_Power) Reset() {

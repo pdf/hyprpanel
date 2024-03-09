@@ -96,9 +96,7 @@ const (
 	DispatchCloseWindow = `closewindow`
 )
 
-var (
-	eventMatch = regexp.MustCompile(`^(?P<Event>[^>]+)>>(?P<Value>.*)$`)
-)
+var eventMatch = regexp.MustCompile(`^(?P<Event>[^>]+)>>(?P<Value>.*)$`)
 
 // CancelFunc cancels a subscription when called.
 type CancelFunc func()
@@ -109,6 +107,7 @@ type HyprIPC struct {
 	subscriptions map[Event]map[uuid.UUID]chan *eventv1.Event
 	evtConn       net.Conn
 	evtBus        chan []byte
+	quitCh        chan struct{}
 	mu            sync.RWMutex
 }
 
@@ -245,6 +244,7 @@ func (h *HyprIPC) StartEvents() {
 
 // Close terminates all connections, event loops, and closes all subscriptions.
 func (h *HyprIPC) Close() {
+	close(h.quitCh)
 	h.evtConn.Close()
 	close(h.evtBus)
 }
@@ -267,7 +267,16 @@ func (h *HyprIPC) eventloop() {
 		h.mu.RLock()
 		if _, ok := h.subscriptions[EventUnspecified]; ok {
 			for _, ch := range h.subscriptions[EventUnspecified] {
-				ch <- evt
+				select {
+				case <-h.quitCh:
+					return
+				default:
+					select {
+					case <-h.quitCh:
+						return
+					case ch <- evt:
+					}
+				}
 			}
 		}
 		if _, ok := h.subscriptions[name]; !ok {
@@ -275,7 +284,16 @@ func (h *HyprIPC) eventloop() {
 			continue
 		}
 		for _, ch := range h.subscriptions[name] {
-			ch <- evt
+			select {
+			case <-h.quitCh:
+				return
+			default:
+				select {
+				case <-h.quitCh:
+					return
+				case ch <- evt:
+				}
+			}
 		}
 		h.mu.RUnlock()
 	}
@@ -305,6 +323,7 @@ func New(log hclog.Logger) (*HyprIPC, error) {
 		log:           log,
 		evtConn:       evtConn,
 		evtBus:        make(chan []byte, 10),
+		quitCh:        make(chan struct{}),
 		subscriptions: make(map[Event]map[uuid.UUID]chan *eventv1.Event),
 	}
 

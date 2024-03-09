@@ -101,6 +101,8 @@ Some modules (where noted) support embedding in the systray.
 > [!NOTE]
 > The hyprpanel SNI implementation does not play well with others: hyprpanel does not support registering additional StatusNotifierHosts, and will fail to start if it can't own the bus. So if you use this module hyprpanel *must* be the only SNI implementation on your desktop.
 >
+> To disable systray support, set the config option `dbus.systray.enabled` to `false`, and remove the `systray` module from all panels.
+>
 > If you need xembed support, you can try `xembedsniproxy` from the KDE project, though expect some artifical delays as that project expects to communicate directly with the KDE SNI implementation.
 
 ### Audio
@@ -145,6 +147,11 @@ The session module provides a basic session management screen.
 ### Notifications
 
 Displays system notifications.
+
+> [!NOTE]
+> The hyprpanel notifications implementation does not play well with others, and will fail to start if it can't own the bus. So if you use this module hyprpanel *must* be the only notifications implementation on your desktop.
+>
+> To disable notifications support, set the config option `dbus.notifications.enabled` to `false`, and remove the `notifications` module from all panels.
 
 #### Actions
 

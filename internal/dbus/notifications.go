@@ -184,7 +184,7 @@ func (n *notifications) init() error {
 		return err
 	}
 	if reply != dbus.RequestNameReplyPrimaryOwner && reply != dbus.RequestNameReplyAlreadyOwner {
-		return fmt.Errorf("DBUS Notifications already claimed, disable systray or close the other claiming application: code %d", reply)
+		return fmt.Errorf("DBUS Notifications already claimed, disable notifications or close the other claiming application: code %d", reply)
 	}
 
 	if err := n.conn.Export(n, notificationsPath, notificationsName); err != nil {

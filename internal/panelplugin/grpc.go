@@ -349,7 +349,7 @@ func (s *HostGRPCServer) NotificationClosed(_ context.Context, req *hyprpanelv1.
 	return &hyprpanelv1.HostServiceNotificationClosedResponse{}, nil
 }
 
-// NotificationAction implementaiton.
+// NotificationAction implementation.
 func (s *HostGRPCServer) NotificationAction(_ context.Context, req *hyprpanelv1.HostServiceNotificationActionRequest) (*hyprpanelv1.HostServiceNotificationActionResponse, error) {
 	err := s.Impl.NotificationAction(req.Id, req.ActionKey)
 	if err != nil {

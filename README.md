@@ -1,5 +1,11 @@
 # hyprpanel
 
+[![Lint](https://github.com/pdf/hyprpanel/actions/workflows/lint.yml/badge.svg)](https://github.com/pdf/hyprpanel/actions/workflows/lint.yml)
+[![Release](https://github.com/pdf/hyprpanel/actions/workflows/release.yml/badge.svg)](https://github.com/pdf/hyprpanel/actions/workflows/release.yml)
+[![AUR](https://github.com/pdf/hyprpanel/actions/workflows/aur.yml/badge.svg)](https://github.com/pdf/hyprpanel/actions/workflows/aur.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/pdf/hyprpanel)](https://goreportcard.com/report/github.com/pdf/hyprpanel)
+[![License](https://img.shields.io/badge/License-MIT-%23a31f34)](https://github.com/pdf/hyprpanel/blob/main/LICENSE)
+
 An opinionated panel/shell for the Hyprland compositor.
 
 > [!NOTE]

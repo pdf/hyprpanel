@@ -30,10 +30,17 @@ jobs:
           version: v1.54
       - name: Setup buf
         uses: bufbuild/buf-setup-action@v1.30.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Go generate
         run: go generate ./...
       - name: Check outdated protobuf
-        run: '[ "$(git status --porcelain | wc -l)" -ne 0 ] && exit 1'
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            exit 0
+          else
+            exit 1
+          fi
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:

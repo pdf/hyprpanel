@@ -110,6 +110,7 @@ func (a *AppCache) cacheWalk(path string, d fs.DirEntry, err error) error {
 	app, err := newAppInfo(p)
 	if err != nil {
 		a.log.Error(`Failed parsing desktop file`, `file`, p, `err`, err)
+		return nil
 	}
 
 	name := strings.TrimSuffix(d.Name(), `.desktop`)

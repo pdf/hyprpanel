@@ -30,7 +30,9 @@ type pagerWorkspace struct {
 func (w *pagerWorkspace) rename(name string) {
 	if w.name != name {
 		w.name = name
-		w.label.SetText(w.name)
+		if w.label != nil {
+			w.label.SetText(w.name)
+		}
 	}
 }
 

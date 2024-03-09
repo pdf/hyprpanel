@@ -23,7 +23,7 @@ message Pager {
   bool scroll_wrap_workspaces = 3; // when switching workspaces via mouse scroll, wrap to start/end on over-scroll.
   bool scroll_include_inactive = 4; // when scrolling workspaces, include inactive workspaces
   bool enable_workspace_names = 5; // display workspace name labels.
-  repeated string pinned = 6; // list of workspaces names that will always be included in the pager, regardless of activation state. Unfortunately due to limitations in the Hyprland API, workspace names and IDs must match for this to work currently.
+  repeated int32 pinned = 6; // list of workspace IDs that will always be included in the pager, regardless of activation state.
   repeated string ignore_windows = 7; // list of window classes that will be excluded from preview on the pager.
 }
 

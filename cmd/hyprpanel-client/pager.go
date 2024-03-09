@@ -16,7 +16,7 @@ import (
 
 type sortedWorkspaces struct {
 	workspaces   []*pagerWorkspace
-	workspaceIdx map[string]int
+	workspaceIdx map[int]int
 }
 
 func (s sortedWorkspaces) Len() int {
@@ -24,31 +24,28 @@ func (s sortedWorkspaces) Len() int {
 }
 func (s sortedWorkspaces) Swap(i, j int) {
 	s.workspaces[i], s.workspaces[j] = s.workspaces[j], s.workspaces[i]
-	s.workspaceIdx[s.workspaces[i].name] = i
-	s.workspaceIdx[s.workspaces[j].name] = j
+	s.workspaceIdx[s.workspaces[i].id] = i
+	s.workspaceIdx[s.workspaces[j].id] = j
 }
 func (s sortedWorkspaces) Less(i, j int) bool {
-	if s.workspaces[i].id == s.workspaces[j].id {
-		return s.workspaces[i].name < s.workspaces[j].name
-	}
 	return s.workspaces[i].id < s.workspaces[j].id
 }
-func (s sortedWorkspaces) getIdx(name string) int {
-	return s.workspaceIdx[name]
+func (s sortedWorkspaces) getIdx(id int) int {
+	return s.workspaceIdx[id]
 }
 func (s sortedWorkspaces) getWorkspace(idx int) *pagerWorkspace {
 	return s.workspaces[idx]
 }
 
-func newSortedWorkspaces(workspaces map[string]*pagerWorkspace) sortedWorkspaces {
+func newSortedWorkspaces(workspaces map[int]*pagerWorkspace) sortedWorkspaces {
 	s := sortedWorkspaces{
 		workspaces:   make([]*pagerWorkspace, len(workspaces)),
-		workspaceIdx: make(map[string]int),
+		workspaceIdx: make(map[int]int),
 	}
 	i := 0
 	for _, ws := range workspaces {
 		s.workspaces[i] = ws
-		s.workspaceIdx[ws.name] = i
+		s.workspaceIdx[ws.id] = i
 		i++
 	}
 	sort.Sort(s)
@@ -61,10 +58,9 @@ type pager struct {
 	cfg              *modulev1.Pager
 	scale            float64
 	activeClient     string
-	activeWorkspace  string
-	workspaces       map[string]*pagerWorkspace
-	workspaceIDs     map[int]*pagerWorkspace
-	clientWorkspaces map[string]string
+	activeWorkspace  int
+	workspaces       map[int]*pagerWorkspace
+	clientWorkspaces map[string]int
 	sortedWorkspaces sortedWorkspaces
 	eventCh          chan *eventv1.Event
 	quitCh           chan struct{}
@@ -72,45 +68,32 @@ type pager struct {
 	container *gtk.Box
 }
 
-func (p *pager) getWorkspace(name string, id int) (*pagerWorkspace, error) {
-	ws, ok := p.workspaces[name]
+func (p *pager) getWorkspace(id int) (*pagerWorkspace, error) {
+	ws, ok := p.workspaces[id]
 	if !ok {
-		if ws, ok = p.workspaceIDs[id]; !ok {
-			return nil, errNotFound
-		}
+		return nil, errNotFound
 	}
 	return ws, nil
 }
 
-func (p *pager) addWorkspace(name string, pinned bool) *pagerWorkspace {
-	ws := newPagerWorkspace(p, name, pinned)
-	p.workspaces[name] = ws
+func (p *pager) addWorkspace(id int, name string, pinned bool) *pagerWorkspace {
+	ws := newPagerWorkspace(p, id, name, pinned)
+	p.workspaces[id] = ws
 	p.sortedWorkspaces = newSortedWorkspaces(p.workspaces)
 	return ws
 }
 
-func (p *pager) setWorkspaceID(ws *pagerWorkspace, id int) {
-	if ws.id != id {
-		delete(p.workspaceIDs, ws.id)
-		ws.id = id
-		p.workspaceIDs[id] = ws
-		p.sortedWorkspaces = newSortedWorkspaces(p.workspaces)
-	}
-}
-
 func (p *pager) renameWorkspace(id int, name string) {
-	ws, ok := p.workspaceIDs[id]
+	ws, ok := p.workspaces[id]
 	if !ok {
 		return
 	}
-	delete(p.workspaces, ws.name)
 	ws.rename(name)
-	p.workspaces[name] = ws
 	p.sortedWorkspaces = newSortedWorkspaces(p.workspaces)
 }
 
-func (p *pager) deleteWorkspace(name string) error {
-	ws, err := p.getWorkspace(name, 0)
+func (p *pager) deleteWorkspace(id int) error {
+	ws, err := p.getWorkspace(id)
 	if err != nil {
 		return err
 	}
@@ -123,8 +106,7 @@ func (p *pager) deleteWorkspace(name string) error {
 		return err
 	}
 
-	delete(p.workspaces, name)
-	delete(p.workspaceIDs, ws.id)
+	delete(p.workspaces, id)
 
 	p.sortedWorkspaces = newSortedWorkspaces(p.workspaces)
 
@@ -133,16 +115,16 @@ func (p *pager) deleteWorkspace(name string) error {
 
 func (p *pager) updateClient(client *hypripc.Client) {
 	if prevWsName, ok := p.clientWorkspaces[client.Address]; ok {
-		if prevWsName != client.Workspace.Name {
+		if prevWsName != client.Workspace.ID {
 			if prevws, ok := p.workspaces[prevWsName]; ok {
 				prevws.deleteClient(client.Address)
 			}
 		}
 	}
-	if ws, ok := p.workspaces[client.Workspace.Name]; ok {
+	if ws, ok := p.workspaces[client.Workspace.ID]; ok {
 		ws.updateClient(client)
 	}
-	p.clientWorkspaces[client.Address] = client.Workspace.Name
+	p.clientWorkspaces[client.Address] = client.Workspace.ID
 }
 
 func (p *pager) deleteClient(addr string) {
@@ -165,16 +147,16 @@ func (p *pager) update() error {
 		return err
 	}
 
-	live := make(map[string]struct{})
+	live := make(map[int]struct{})
 	for _, space := range spaces {
-		ws, err := p.getWorkspace(space.Name, space.ID)
+		ws, err := p.getWorkspace(space.ID)
 		if err != nil {
-			ws = p.addWorkspace(space.Name, false)
+			ws = p.addWorkspace(space.ID, space.Name, false)
 			if err := ws.build(p.container); err != nil {
 				return err
 			}
 		}
-		p.setWorkspaceID(ws, space.ID)
+		p.renameWorkspace(space.ID, space.Name)
 
 		for _, client := range clients {
 			if client.Workspace.Name == space.Name {
@@ -182,16 +164,16 @@ func (p *pager) update() error {
 			}
 		}
 
-		ws.setActive(true, p.activeWorkspace == space.Name)
-		live[space.Name] = struct{}{}
+		ws.setActive(true, p.activeWorkspace == space.ID)
+		live[space.ID] = struct{}{}
 	}
 
-	for name := range p.workspaces {
-		if _, ok := live[name]; ok {
+	for id := range p.workspaces {
+		if _, ok := live[id]; ok {
 			continue
 		}
 
-		if err := p.deleteWorkspace(name); err != nil {
+		if err := p.deleteWorkspace(id); err != nil {
 			log.Debug(`Failed deleting workspace`, `module`, style.PagerID, `err`, err)
 		}
 	}
@@ -210,7 +192,7 @@ func (p *pager) build(container *gtk.Box) error {
 	if err != nil {
 		return err
 	}
-	p.activeWorkspace = activeWorkspace.Name
+	p.activeWorkspace = activeWorkspace.ID
 
 	p.container = gtk.NewBox(p.panel.orientation, 0)
 	p.AddRef(p.container.Unref)
@@ -240,7 +222,7 @@ func (p *pager) build(container *gtk.Box) error {
 			} else if p.cfg.ActiveMonitorOnly {
 				target = `m-1`
 			}
-			if p.cfg.ScrollWrapWorkspaces && p.activeWorkspace != `` {
+			if p.cfg.ScrollWrapWorkspaces && p.activeWorkspace != 0 {
 				currentIdx := p.sortedWorkspaces.getIdx(p.activeWorkspace)
 				for idx := currentIdx - 1; ; idx-- {
 					if idx < 0 {
@@ -260,7 +242,7 @@ func (p *pager) build(container *gtk.Box) error {
 					break
 				}
 			}
-		} else if p.cfg.ScrollWrapWorkspaces && p.activeWorkspace != `` {
+		} else if p.cfg.ScrollWrapWorkspaces && p.activeWorkspace != 0 {
 			currentIdx := p.sortedWorkspaces.getIdx(p.activeWorkspace)
 			for idx := currentIdx + 1; ; idx++ {
 				if idx >= p.sortedWorkspaces.Len() {
@@ -295,10 +277,8 @@ func (p *pager) build(container *gtk.Box) error {
 	scrollController.ConnectScroll(&scrollCb)
 	p.container.AddController(&scrollController.EventController)
 
-	for i, name := range p.cfg.Pinned {
-		ws := p.addWorkspace(name, true)
-		// HACK: Set made up IDs because Hyprland doesn't support stable workspace ID to name mappings
-		p.setWorkspaceID(ws, i+1)
+	for _, id := range p.cfg.Pinned {
+		ws := p.addWorkspace(int(id), strconv.Itoa(int(id)), true)
 		if err := ws.build(p.container); err != nil {
 			return err
 		}
@@ -342,14 +322,18 @@ func (p *pager) watch() {
 			case <-ticker.C:
 			case evt := <-p.eventCh:
 				switch evt.Kind {
-				case eventv1.EventKind_EVENT_KIND_HYPR_WORKSPACE:
-					name, err := eventv1.DataString(evt.Data)
-					if err != nil {
+				case eventv1.EventKind_EVENT_KIND_HYPR_WORKSPACEV2:
+					data := &eventv1.HyprWorkspaceV2Value{}
+					if !evt.Data.MessageIs(data) {
 						log.Warn(`Invalid event`, `module`, style.PagerID, `evt`, evt)
 						continue
 					}
-					p.activeWorkspace = name
-				case eventv1.EventKind_EVENT_KIND_HYPR_CREATEWORKSPACE:
+					if err := evt.Data.UnmarshalTo(data); err != nil {
+						log.Warn(`Invalid event`, `module`, style.PagerID, `evt`, evt)
+						continue
+					}
+					p.activeWorkspace = int(data.Id)
+				case eventv1.EventKind_EVENT_KIND_HYPR_CREATEWORKSPACEV2:
 				case eventv1.EventKind_EVENT_KIND_HYPR_CLOSEWINDOW:
 					addr, err := eventv1.DataString(evt.Data)
 					if err != nil {
@@ -371,8 +355,8 @@ func (p *pager) watch() {
 						continue
 					}
 					p.activeClient = addr
-				case eventv1.EventKind_EVENT_KIND_HYPR_DESTROYWORKSPACE:
-				case eventv1.EventKind_EVENT_KIND_HYPR_MOVEWORKSPACE:
+				case eventv1.EventKind_EVENT_KIND_HYPR_DESTROYWORKSPACEV2:
+				case eventv1.EventKind_EVENT_KIND_HYPR_MOVEWORKSPACEV2:
 				case eventv1.EventKind_EVENT_KIND_HYPR_RENAMEWORKSPACE:
 					data := &eventv1.HyprRenameWorkspaceValue{}
 					if !evt.Data.MessageIs(data) {
@@ -394,7 +378,7 @@ func (p *pager) watch() {
 				case eventv1.EventKind_EVENT_KIND_HYPR_OPENWINDOW:
 				case eventv1.EventKind_EVENT_KIND_HYPR_FULLSCREEN:
 				case eventv1.EventKind_EVENT_KIND_HYPR_WINDOWTITLE:
-				case eventv1.EventKind_EVENT_KIND_HYPR_MOVEWINDOW:
+				case eventv1.EventKind_EVENT_KIND_HYPR_MOVEWINDOWV2:
 				default:
 					continue
 				}
@@ -421,9 +405,8 @@ func newPager(panel *panel, cfg *modulev1.Pager) *pager {
 		refTracker:       newRefTracker(),
 		panel:            panel,
 		cfg:              cfg,
-		workspaces:       make(map[string]*pagerWorkspace),
-		workspaceIDs:     make(map[int]*pagerWorkspace),
-		clientWorkspaces: make(map[string]string),
+		workspaces:       make(map[int]*pagerWorkspace),
+		clientWorkspaces: make(map[string]int),
 		eventCh:          make(chan *eventv1.Event),
 		quitCh:           make(chan struct{}),
 	}

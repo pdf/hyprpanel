@@ -51,12 +51,12 @@
 						"scroll_include_inactive": true,
 						"enable_workspace_names": false,
 						"pinned": [
-							"1",
-							"2",
-							"3",
-							"4",
-							"5",
-							"6"
+							1,
+							2,
+							3,
+							4,
+							5,
+							6
 						],
 						"ignore_windows": []
 					}

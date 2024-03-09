@@ -88,6 +88,48 @@ enum EventKind {
   EVENT_KIND_AUDIO_SOURCE_MUTE_TOGGLE = 51;
   EVENT_KIND_HUD_NOTIFY = 52;
   EVENT_KIND_DBUS_POWER_CHANGE = 53;
+  EVENT_KIND_HYPR_MOVEWORKSPACEV2 = 54;
+  EVENT_KIND_HYPR_MOVEWINDOWV2 = 55;
+  EVENT_KIND_HYPR_CREATEWORKSPACEV2 = 56;
+  EVENT_KIND_HYPR_DESTROYWORKSPACEV2 = 57;
+  EVENT_KIND_HYPR_WORKSPACEV2 = 58;
+}
+
+message HyprWorkspaceV2Value {
+  int32 id = 1;
+  string name = 2;
+}
+
+message HyprDestroyWorkspaceV2Value {
+  int32 id = 1;
+  string name = 2;
+}
+
+message HyprCreateWorkspaceV2Value {
+  int32 id = 1;
+  string name = 2;
+}
+
+message HyprMoveWindowValue {
+  string address = 1;
+  string workspace_name = 2;
+}
+
+message HyprMoveWindowV2Value {
+  string address = 1;
+  int32 workspace_id = 2;
+  string workspace_name = 3;
+}
+
+message HyprMoveWorkspaceValue {
+  string name = 1;
+  string monitor = 2;
+}
+
+message HyprMoveWorkspaceV2Value {
+  int32 id = 1;
+  string name = 2;
+  string monitor = 3;
 }
 
 message HyprRenameWorkspaceValue {

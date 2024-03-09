@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"strconv"
 
 	"github.com/jwijenbergh/puregotk/v4/gdk"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
@@ -131,7 +132,7 @@ func (w *pagerWorkspace) build(container *gtk.Box) error {
 	clickCb := func(ctrl gtk.GestureClick, _ int, _, _ float64) {
 		switch ctrl.GetCurrentButton() {
 		case uint(gdk.BUTTON_PRIMARY):
-			if err := w.pager.panel.hypr.Dispatch(hypripc.DispatchWorkspace, `name:`+w.name); err != nil {
+			if err := w.pager.panel.hypr.Dispatch(hypripc.DispatchWorkspace, strconv.Itoa(int(w.id))); err != nil {
 				log.Warn(`Switch workspace failed`, `module`, style.PagerID, `err`, err)
 			}
 		}
@@ -180,10 +181,11 @@ func (w *pagerWorkspace) close(container *gtk.Box) error {
 	return nil
 }
 
-func newPagerWorkspace(p *pager, name string, pinned bool) *pagerWorkspace {
+func newPagerWorkspace(p *pager, id int, name string, pinned bool) *pagerWorkspace {
 	return &pagerWorkspace{
 		refTracker: newRefTracker(),
 		pager:      p,
+		id:         id,
 		name:       name,
 		pinned:     pinned,
 		clients:    make(map[string]*pagerClient),

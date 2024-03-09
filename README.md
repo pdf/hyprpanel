@@ -14,7 +14,7 @@ An opinionated panel/shell for the Hyprland compositor.
 This project depends on (required):
 - gtk4
 - gtk4-layer-shell
-- Hyprland
+- Hyprland (version must be >= [5920c6a](https://github.com/hyprwm/Hyprland/commit/5920c6a6b8d059413377f0cb25f3dfb1dc8c4201))
 
 Optional dependencies (required for default configuration):
 - systemd

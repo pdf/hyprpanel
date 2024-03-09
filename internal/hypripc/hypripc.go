@@ -27,6 +27,8 @@ const (
 	EventUnspecified = `unspecified`
 	// EventWorkspace event identifier.
 	EventWorkspace = `workspace`
+	// EventWorkspaceV2 event identifier.
+	EventWorkspaceV2 = `workspacev2`
 	// EventFocusedMon event identifier.
 	EventFocusedMon = `focusedmon`
 	// EventActiveWindow event identifier.
@@ -41,10 +43,16 @@ const (
 	EventMonitorAdded = `monitoradded`
 	// EventCreateWorkspace event identifier.
 	EventCreateWorkspace = `createworkspace`
+	// EventCreateWorkspaceV2 event identifier.
+	EventCreateWorkspaceV2 = `createworkspacev2`
 	// EventDestroyWorkspace event identifier.
 	EventDestroyWorkspace = `destroyworkspace`
+	// EventDestroyWorkspaceV2 event identifier.
+	EventDestroyWorkspaceV2 = `destroyworkspacev2`
 	// EventMoveWorkspace event identifier.
 	EventMoveWorkspace = `moveworkspace`
+	// EventMoveWorkspaceV2 event identifier.
+	EventMoveWorkspaceV2 = `moveworkspacev2`
 	// EventRenameWorkspace event identifier.
 	EventRenameWorkspace = `renameworkspace`
 	// EventActiveSpecial event identifier.
@@ -57,6 +65,8 @@ const (
 	EventCloseWindow = `closewindow`
 	// EventMoveWindow event identifier.
 	EventMoveWindow = `movewindow`
+	// EventMoveWindowV2 event identifier.
+	EventMoveWindowV2 = `movewindowv2`
 	// EventOpenLayer event identifier.
 	EventOpenLayer = `openlayer`
 	// EventCloseLayer event identifier.
@@ -305,10 +315,27 @@ func hyprToEvent(name Event, value string) (*eventv1.Event, error) {
 	switch name {
 	case EventWorkspace:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_WORKSPACE, value)
+	case EventWorkspaceV2:
+		s := strings.SplitN(value, `,`, 2)
+		if len(s) != 2 {
+			return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_WORKSPACEV2, value)
+		}
+		id, err := strconv.Atoi(s[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventWorkspaceV2, err)
+		}
+		data, err := anypb.New(&eventv1.HyprWorkspaceV2Value{Id: int32(id), Name: s[1]})
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventWorkspaceV2, err)
+		}
+		return &eventv1.Event{
+			Kind: eventv1.EventKind_EVENT_KIND_HYPR_WORKSPACEV2,
+			Data: data,
+		}, nil
 	case EventFocusedMon:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_FOCUSEDMON, value)
 	case EventActiveWindow:
-		s := strings.SplitN(value, `,`, 4)
+		s := strings.SplitN(value, `,`, 2)
 		if len(s) != 2 {
 			return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_ACTIVEWINDOW, value)
 		}
@@ -331,10 +358,72 @@ func hyprToEvent(name Event, value string) (*eventv1.Event, error) {
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_MONITORADDED, value)
 	case EventCreateWorkspace:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_CREATEWORKSPACE, value)
+	case EventCreateWorkspaceV2:
+		s := strings.SplitN(value, `,`, 2)
+		if len(s) != 2 {
+			return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_CREATEWORKSPACEV2, value)
+		}
+		id, err := strconv.Atoi(s[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventCreateWorkspaceV2, err)
+		}
+		data, err := anypb.New(&eventv1.HyprCreateWorkspaceV2Value{Id: int32(id), Name: s[1]})
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventCreateWorkspaceV2, err)
+		}
+		return &eventv1.Event{
+			Kind: eventv1.EventKind_EVENT_KIND_HYPR_CREATEWORKSPACEV2,
+			Data: data,
+		}, nil
 	case EventDestroyWorkspace:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_DESTROYWORKSPACE, value)
+	case EventDestroyWorkspaceV2:
+		s := strings.SplitN(value, `,`, 2)
+		if len(s) != 2 {
+			return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_DESTROYWORKSPACEV2, value)
+		}
+		id, err := strconv.Atoi(s[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventDestroyWorkspaceV2, err)
+		}
+		data, err := anypb.New(&eventv1.HyprDestroyWorkspaceV2Value{Id: int32(id), Name: s[1]})
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventDestroyWorkspaceV2, err)
+		}
+		return &eventv1.Event{
+			Kind: eventv1.EventKind_EVENT_KIND_HYPR_DESTROYWORKSPACEV2,
+			Data: data,
+		}, nil
 	case EventMoveWorkspace:
-		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_MOVEWORKSPACE, value)
+		s := strings.SplitN(value, `,`, 2)
+		if len(s) != 2 {
+			return nil, fmt.Errorf("invalid event (%s)", EventMoveWorkspace)
+		}
+		data, err := anypb.New(&eventv1.HyprMoveWorkspaceValue{Name: s[0], Monitor: s[1]})
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventRenameWorkspace, err)
+		}
+		return &eventv1.Event{
+			Kind: eventv1.EventKind_EVENT_KIND_HYPR_MOVEWORKSPACE,
+			Data: data,
+		}, nil
+	case EventMoveWorkspaceV2:
+		s := strings.SplitN(value, `,`, 3)
+		if len(s) != 3 {
+			return nil, fmt.Errorf("invalid event (%s)", EventMoveWorkspaceV2)
+		}
+		id, err := strconv.Atoi(s[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventMoveWorkspaceV2, err)
+		}
+		data, err := anypb.New(&eventv1.HyprMoveWorkspaceV2Value{Id: int32(id), Name: s[1], Monitor: s[2]})
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventRenameWorkspace, err)
+		}
+		return &eventv1.Event{
+			Kind: eventv1.EventKind_EVENT_KIND_HYPR_MOVEWORKSPACEV2,
+			Data: data,
+		}, nil
 	case EventRenameWorkspace:
 		s := strings.SplitN(value, `,`, 2)
 		if len(s) != 2 {
@@ -378,7 +467,42 @@ func hyprToEvent(name Event, value string) (*eventv1.Event, error) {
 		value = `0x` + value
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_CLOSEWINDOW, value)
 	case EventMoveWindow:
-		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_MOVEWINDOW, value)
+		s := strings.SplitN(value, `,`, 2)
+		if len(s) != 2 {
+			return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_MOVEWINDOW, value)
+		}
+		data, err := anypb.New(&eventv1.HyprMoveWindowValue{
+			Address:       s[0],
+			WorkspaceName: s[1],
+		})
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventMoveWindow, err)
+		}
+		return &eventv1.Event{
+			Kind: eventv1.EventKind_EVENT_KIND_HYPR_MOVEWINDOW,
+			Data: data,
+		}, nil
+	case EventMoveWindowV2:
+		s := strings.SplitN(value, `,`, 3)
+		if len(s) != 3 {
+			return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_MOVEWINDOWV2, value)
+		}
+		id, err := strconv.Atoi(s[1])
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventRenameWorkspace, err)
+		}
+		data, err := anypb.New(&eventv1.HyprMoveWindowV2Value{
+			Address:       s[0],
+			WorkspaceId:   int32(id),
+			WorkspaceName: s[2],
+		})
+		if err != nil {
+			return nil, fmt.Errorf("invalid event (%s): %w", EventMoveWindowV2, err)
+		}
+		return &eventv1.Event{
+			Kind: eventv1.EventKind_EVENT_KIND_HYPR_MOVEWINDOWV2,
+			Data: data,
+		}, nil
 	case EventOpenLayer:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_HYPR_OPENLAYER, value)
 	case EventCloseLayer:

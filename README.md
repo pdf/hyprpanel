@@ -7,6 +7,12 @@ An opinionated panel/shell for the Hyprland compositor.
 > 
 > Use at your own risk - I will accept contributions, but I don't expect to spend a lot of time maintaining this project.
 
+
+
+https://github.com/pdf/hyprpanel/assets/146192/a28aeb8d-2ee5-4a4c-a9c4-012b4adbb19a
+
+
+
 ## Install
 
 ### Dependencies

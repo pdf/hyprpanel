@@ -179,7 +179,7 @@ func (n *notifications) GetServerInformation() (name, vendor, version, specVersi
 }
 
 func (n *notifications) init() error {
-	reply, err := n.conn.RequestName(notificationsName, dbus.NameFlagDoNotQueue)
+	reply, err := n.conn.RequestName(notificationsName, dbus.NameFlagDoNotQueue|dbus.NameFlagReplaceExisting|dbus.NameFlagAllowReplacement)
 	if err != nil {
 		return err
 	}

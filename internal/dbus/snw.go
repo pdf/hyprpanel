@@ -299,7 +299,7 @@ func (s *statusNotifierWatcher) init() error {
 		return err
 	}
 
-	reply, err := s.conn.RequestName(snwName, dbus.NameFlagDoNotQueue)
+	reply, err := s.conn.RequestName(snwName, dbus.NameFlagDoNotQueue|dbus.NameFlagReplaceExisting|dbus.NameFlagAllowReplacement)
 	if err != nil {
 		return err
 	}

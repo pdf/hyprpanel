@@ -315,6 +315,15 @@ func (h *host) watch(hyprEvtCh <-chan *eventv1.Event) {
 					if err := h.BrightnessAdjust(data.DevName, data.Direction); err != nil {
 						h.log.Warn(`Brightness adjustment failed`, `err`, err)
 					}
+				case eventv1.EventKind_EVENT_KIND_EXEC:
+					cmd, err := eventv1.DataString(evt.Data)
+					if err != nil {
+						h.log.Warn(`Invalid event`, `evt`, evt)
+						continue
+					}
+					if err := h.Exec(cmd); err != nil {
+						h.log.Warn(`Exec failed`, `err`, err)
+					}
 				default:
 					for _, panel := range h.panels {
 						panel.Notify(evt)

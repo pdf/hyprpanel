@@ -32,7 +32,9 @@ type power struct {
 
 	displayDevicePath dbus.ObjectPath
 
-	cachePower map[string]*eventv1.PowerChangeValue
+	cachePower    map[string]*eventv1.PowerChangeValue
+	levelLow      bool
+	levelCritical bool
 
 	eventCh chan *eventv1.Event
 	signals chan *dbus.Signal
@@ -40,7 +42,7 @@ type power struct {
 	quitCh  chan struct{}
 }
 
-func (b *power) updatePower(objPath dbus.ObjectPath, props map[string]dbus.Variant) error {
+func (p *power) updatePower(objPath dbus.ObjectPath, props map[string]dbus.Variant) error {
 	name := filepath.Base(string(objPath))
 	if name == powerDisplayDevice {
 		name = eventv1.PowerDefaultID
@@ -49,12 +51,12 @@ func (b *power) updatePower(objPath dbus.ObjectPath, props map[string]dbus.Varia
 	powerValue := &eventv1.PowerChangeValue{
 		Id: name,
 	}
-	lastValue, ok := b.cachePower[name]
+	lastValue, ok := p.cachePower[name]
 	if ok {
 		proto.Merge(powerValue, lastValue)
 	} else if !ok || props == nil {
 		lastValue = &eventv1.PowerChangeValue{}
-		busObj := b.conn.Object(fdoUPowerName, objPath)
+		busObj := p.conn.Object(fdoUPowerName, objPath)
 		call := busObj.Call(fdoPropertiesMethodGetAll, 0, fdoUPowerDeviceName)
 		if call.Err != nil {
 			return fmt.Errorf("failed getting power device properties: %w", call.Err)
@@ -117,8 +119,46 @@ func (b *power) updatePower(objPath dbus.ObjectPath, props map[string]dbus.Varia
 				return err
 			}
 			powerValue.Percentage = uint32(math.Round(val))
-			if powerValue.Percentage <= b.cfg.LowPercent && powerValue.Percentage != lastValue.Percentage {
-				hudUpdate = true
+			if powerValue.Percentage <= p.cfg.LowPercent {
+				if powerValue.Percentage != lastValue.Percentage {
+					hudUpdate = true
+
+					if !p.levelLow && (powerValue.State != eventv1.PowerState_POWER_STATE_CHARGING && powerValue.State != eventv1.PowerState_POWER_STATE_FULLY_CHARGED && powerValue.State != eventv1.PowerState_POWER_STATE_PENDING_CHARGE) {
+						p.levelLow = true
+
+						evt, err := eventv1.NewString(eventv1.EventKind_EVENT_KIND_EXEC, p.cfg.LowCommand)
+						if err != nil {
+							return err
+						}
+
+						select {
+						case <-p.quitCh:
+							return nil
+						case p.eventCh <- evt:
+						}
+					}
+				}
+			} else {
+				p.levelLow = false
+			}
+
+			if powerValue.Percentage <= p.cfg.CriticalPercent {
+				if powerValue.Percentage != lastValue.Percentage && !p.levelCritical && (powerValue.State != eventv1.PowerState_POWER_STATE_CHARGING && powerValue.State != eventv1.PowerState_POWER_STATE_FULLY_CHARGED && powerValue.State != eventv1.PowerState_POWER_STATE_PENDING_CHARGE) {
+					p.levelCritical = true
+
+					evt, err := eventv1.NewString(eventv1.EventKind_EVENT_KIND_EXEC, p.cfg.CriticalCommand)
+					if err != nil {
+						return err
+					}
+
+					select {
+					case <-p.quitCh:
+						return nil
+					case p.eventCh <- evt:
+					}
+				}
+			} else {
+				p.levelCritical = false
 			}
 		case fdoUPowerDevicePropertyState, strcase.ToKebab(fdoUPowerDevicePropertyState):
 			var val eventv1.PowerState
@@ -159,24 +199,28 @@ func (b *power) updatePower(objPath dbus.ObjectPath, props map[string]dbus.Varia
 		}
 	}
 
-	b.cachePower[powerValue.Id] = powerValue
+	p.cachePower[powerValue.Id] = powerValue
 
 	powerData, err := anypb.New(powerValue)
 	if err != nil {
 		return fmt.Errorf(`failed encodiung event data for power dev (%s): %w`, name, err)
 	}
 
-	b.eventCh <- &eventv1.Event{
+	select {
+	case <-p.quitCh:
+		return nil
+	case p.eventCh <- &eventv1.Event{
 		Kind: eventv1.EventKind_EVENT_KIND_DBUS_POWER_CHANGE,
 		Data: powerData,
+	}:
 	}
 
-	if !b.cfg.HudNotifications || !hudUpdate || powerValue.Type != eventv1.PowerType_POWER_TYPE_BATTERY {
+	if !p.cfg.HudNotifications || !hudUpdate || powerValue.Type != eventv1.PowerType_POWER_TYPE_BATTERY {
 		return nil
 	}
 
 	select {
-	case <-b.readyCh:
+	case <-p.readyCh:
 	default:
 		return nil
 	}
@@ -220,67 +264,71 @@ func (b *power) updatePower(objPath dbus.ObjectPath, props map[string]dbus.Varia
 		return err
 	}
 
-	b.eventCh <- &eventv1.Event{
+	select {
+	case <-p.quitCh:
+		return nil
+	case p.eventCh <- &eventv1.Event{
 		Kind: eventv1.EventKind_EVENT_KIND_HUD_NOTIFY,
 		Data: hudData,
+	}:
 	}
 
 	return nil
 }
 
-func (b *power) init() error {
-	busObj := b.conn.Object(fdoUPowerName, fdoUPowerPath)
+func (p *power) init() error {
+	busObj := p.conn.Object(fdoUPowerName, fdoUPowerPath)
 	call := busObj.Call(fdoUPowerMethodGetDisplayDevice, 0)
 	if call.Err != nil {
 		return fmt.Errorf("failed getting default power device: %w", call.Err)
 	}
 
-	if err := call.Store(&b.displayDevicePath); err != nil {
+	if err := call.Store(&p.displayDevicePath); err != nil {
 		return err
 	}
 
-	deviceObj := b.conn.Object(fdoUPowerDeviceName, b.displayDevicePath)
+	deviceObj := p.conn.Object(fdoUPowerDeviceName, p.displayDevicePath)
 	if err := deviceObj.AddMatchSignal(fdoPropertiesName, fdoPropertiesMemberPropertiesChanged).Err; err != nil {
 		return err
 	}
 
-	if err := b.updatePower(b.displayDevicePath, nil); err != nil {
+	if err := p.updatePower(p.displayDevicePath, nil); err != nil {
 		return err
 	}
 
-	close(b.readyCh)
+	close(p.readyCh)
 
-	go b.watch()
+	go p.watch()
 
 	return nil
 }
 
-func (b *power) watch() {
+func (p *power) watch() {
 	for {
 		select {
-		case <-b.quitCh:
+		case <-p.quitCh:
 			return
 		default:
 			select {
-			case <-b.quitCh:
+			case <-p.quitCh:
 				return
-			case sig, ok := <-b.signals:
+			case sig, ok := <-p.signals:
 				if !ok {
 					return
 				}
 				switch sig.Name {
 				case fdoPropertiesSignalPropertiesChanged:
-					if sig.Path != b.displayDevicePath {
+					if sig.Path != p.displayDevicePath {
 						continue
 					}
 					if len(sig.Body) != 3 {
-						b.log.Warn(`Failed parsing DBUS PropertiesChanged body`, `body`, sig.Body)
+						p.log.Warn(`Failed parsing DBUS PropertiesChanged body`, `body`, sig.Body)
 						continue
 					}
 
 					kind, ok := sig.Body[0].(string)
 					if !ok {
-						b.log.Warn(`Failed asserting DBUS PropertiesChanged body kind`, `kind`, sig.Body[0])
+						p.log.Warn(`Failed asserting DBUS PropertiesChanged body kind`, `kind`, sig.Body[0])
 						continue
 					}
 					if kind != fdoUPowerDeviceName {
@@ -289,15 +337,15 @@ func (b *power) watch() {
 
 					properties, ok := sig.Body[1].(map[string]dbus.Variant)
 					if !ok {
-						b.log.Warn(`Failed asserting DBUS PropertiesChanged body properties`, `properties`, sig.Body[1])
+						p.log.Warn(`Failed asserting DBUS PropertiesChanged body properties`, `properties`, sig.Body[1])
 						continue
 					}
 					if len(properties) == 0 {
 						continue
 					}
 
-					if err := b.updatePower(sig.Path, properties); err != nil {
-						b.log.Warn(`Failed polling power`, `path`, sig.Path, `err`, err)
+					if err := p.updatePower(sig.Path, properties); err != nil {
+						p.log.Warn(`Failed polling power`, `path`, sig.Path, `err`, err)
 						continue
 					}
 				}

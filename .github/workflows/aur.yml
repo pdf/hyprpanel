@@ -7,31 +7,21 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: "aur"
+  cancel-in-progress: true
+
 jobs:
   aur:
     environment:
       name: aur-update
     runs-on: ubuntu-latest
+    container:
+      image: archlinux
+      options: --privileged
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: AUR update (hyprpanel)
-        uses: KSXGitHub/github-actions-deploy-aur@v2.7.0
+      - name: AUR update
+        uses: TheWisker/aur-update@v1
         with:
-          pkgname: hyprpanel
-          pkgbuild: ./aur/hyprpanel/PKGBUILD
-          updpkgsums: true
-          test: true
-          commit_username: ${{ secrets.AUR_USERNAME }}
-          commit_email: ${{ secrets.AUR_EMAIL }}
-          ssh_private_key: ${{ secrets.AUR_KEY }}
-      - name: AUR update (hyprpanel-bin)
-        uses: KSXGitHub/github-actions-deploy-aur@v2.7.0
-        with:
-          pkgname: hyprpanel-bin
-          pkgbuild: ./aur/hyprpanel-bin/PKGBUILD
-          updpkgsums: true
-          test: true
-          commit_username: ${{ secrets.AUR_USERNAME }}
-          commit_email: ${{ secrets.AUR_EMAIL }}
-          ssh_private_key: ${{ secrets.AUR_KEY }}
+          aur_key: ${{ secrets.AUR_KEY }}
+          email: ${{ secrets.AUR_EMAIL }}

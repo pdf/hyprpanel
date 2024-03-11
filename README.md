@@ -13,7 +13,7 @@ An opinionated panel/shell for the Hyprland compositor.
 > 
 > Use at your own risk - I will accept contributions, but I don't expect to spend a lot of time maintaining this project.
 
-https://github.com/pdf/hyprpanel/assets/146192/2da11a7e-b232-4c7d-a563-997d7e4e0be1
+https://github.com/pdf/hyprpanel/assets/146192/2b6b3b40-e814-44c0-9b7e-148a65906874
 
 ## Install
 

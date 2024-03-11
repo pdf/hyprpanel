@@ -242,12 +242,20 @@ func (h *host) watch(hyprEvtCh <-chan *eventv1.Event) {
 				return
 			case <-h.quitCh:
 				return
-			case evt := <-hyprEvtCh:
+			case evt, ok := <-hyprEvtCh:
+				if !ok || evt == nil {
+					h.log.Error(`Received from closed hypr event channel`)
+					return
+				}
 				h.log.Trace(`Received hypr event`, `kind`, evt.Kind)
 				for _, panel := range h.panels {
 					panel.Notify(evt)
 				}
-			case evt := <-h.dbusEvtCh:
+			case evt, ok := <-h.dbusEvtCh:
+				if !ok || evt == nil {
+					h.log.Error(`Received from closed dbus event channel`)
+					return
+				}
 				h.log.Trace(`Received dbus event`, `kind`, evt.Kind)
 				switch evt.Kind {
 				case eventv1.EventKind_EVENT_KIND_AUDIO_SINK_VOLUME_ADJUST:
@@ -329,7 +337,11 @@ func (h *host) watch(hyprEvtCh <-chan *eventv1.Event) {
 						panel.Notify(evt)
 					}
 				}
-			case evt := <-h.audioEvtCh:
+			case evt, ok := <-h.audioEvtCh:
+				if !ok || evt == nil {
+					h.log.Error(`Received from closed audio event channel`)
+					return
+				}
 				h.log.Trace(`Received audio event`, `kind`, evt.Kind)
 				for _, panel := range h.panels {
 					panel.Notify(evt)

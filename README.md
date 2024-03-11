@@ -174,6 +174,21 @@ Displays heads-up notifications for hardware events (e.g. volume, display bright
 
 The spacer module simply adds empty space between modules.
 
+## Global keybinds
+
+Global keybinds are registered through the desktop portal, so they do not have prefixes in `hyprctl globalshortcuts`. The following keybinds are available:
+
+```
+:com.c0dedbad.hyprpanel.audioSinkVolumeUp -> Increase the volume of the default audio output device
+:com.c0dedbad.hyprpanel.audioSinkVolumeDown -> Decrease the volume of the default audio output device
+:com.c0dedbad.hyprpanel.audioSinkMuteToggle -> Toggle the mute status of the default audio output device
+:com.c0dedbad.hyprpanel.audioSourceVolumeUp -> Increase the volume of the default audio input device
+:com.c0dedbad.hyprpanel.audioSourceVolumeDown -> Decrease the volume of the default audio input device
+:com.c0dedbad.hyprpanel.audioSourceMuteToggle -> Toggle the mute status of the default audio input device
+:com.c0dedbad.hyprpanel.brightnessUp -> Increase display brightness
+:com.c0dedbad.hyprpanel.brightnessDown -> Increase display brightness
+```
+
 ## Styling
 
 You may apply custom styling by providing a GTK4-compatible CSS file. By default hyprpanel will look for this file at:

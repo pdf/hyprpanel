@@ -17,6 +17,10 @@ https://github.com/pdf/hyprpanel/assets/146192/2b6b3b40-e814-44c0-9b7e-148a65906
 
 ## Install
 
+### Install via AUR
+
+This project is published in the Arch AUR as `hyprpanel-bin` or `hyprpanel`, install using your favourite AUR helper.
+
 ### Dependencies
 
 This project depends on (required):

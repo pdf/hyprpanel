@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"syscall"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/hashicorp/go-hclog"
@@ -21,7 +22,9 @@ import (
 )
 
 const (
-	name = `hyprpanel`
+	name         = `hyprpanel`
+	crashTimeout = 2 * time.Second
+	crashCount   = 3
 )
 
 func sigHandler(log hclog.Logger, h *host) {
@@ -138,7 +141,6 @@ func main() {
 
 	go func() {
 		for {
-
 			select {
 			case evt := <-watcher.Events:
 				if !evt.Has(fsnotify.Write) && !evt.Has(fsnotify.Create) && !evt.Has(fsnotify.Remove) {
@@ -189,11 +191,25 @@ func main() {
 	}
 	defer plugin.CleanupClients()
 
+	count := 0
+	timer := time.NewTimer(crashTimeout)
 	for {
 		err := h.run()
 		if err != nil && err != errReload {
-			log.Error(`hyprpanel exiting`, `err`, err)
-			os.Exit(1)
+			count += 1
+			log.Error(`Clients failed`, `err`, err)
+			select {
+			case <-timer.C:
+				if count >= crashCount {
+					log.Error(`Restarting too quickly, terminating`)
+					os.Exit(1)
+				}
+				count = 0
+				timer.Reset(crashTimeout)
+				continue
+			default:
+				continue
+			}
 		} else if err != nil && err == errReload {
 			continue
 		}

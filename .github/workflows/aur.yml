@@ -16,12 +16,18 @@ jobs:
     environment:
       name: aur-update
     runs-on: ubuntu-latest
-    container:
-      image: archlinux
-      options: --privileged
     steps:
-      - name: AUR update
-        uses: TheWisker/aur-update@v1
+      - name: AUR update (hyprpanel)
+        uses: ATiltedTree/create-aur-release@v1.1.0
         with:
-          aur_key: ${{ secrets.AUR_KEY }}
-          email: ${{ secrets.AUR_EMAIL }}
+          package_name: hyprpanel
+          ssh_private_key: ${{ secrets.AUR_KEY }}
+          commit_username: ${{ secrets.AUR_COMMIT_USER }}
+          commit_email: ${{ secrets.AUR_COMMIT_EMAIL }}
+      - name: AUR update (hyprpanel-bin)
+        uses: ATiltedTree/create-aur-release@v1.1.0
+        with:
+          package_name: hyprpanel-bin
+          ssh_private_key: ${{ secrets.AUR_KEY }}
+          commit_username: ${{ secrets.AUR_COMMIT_USER }}
+          commit_email: ${{ secrets.AUR_COMMIT_EMAIL }}

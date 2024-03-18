@@ -24,6 +24,7 @@ import (
 const (
 	name         = `hyprpanel`
 	crashTimeout = 2 * time.Second
+	crashRetry   = 200 * time.Millisecond
 	crashCount   = 3
 )
 
@@ -206,10 +207,10 @@ func main() {
 				}
 				count = 0
 				timer.Reset(crashTimeout)
-				continue
 			default:
-				continue
 			}
+			time.Sleep(crashRetry)
+			continue
 		} else if err != nil && err == errReload {
 			continue
 		}

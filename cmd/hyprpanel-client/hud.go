@@ -229,7 +229,10 @@ func (h *hud) update(data *eventv1.HudNotificationValue) error {
 	h.showNotification()
 
 	go func() {
-		<-h.timer.C
+		select {
+		case <-h.timer.C:
+		case <-h.itemClosed:
+		}
 		h.closeItem()
 	}()
 

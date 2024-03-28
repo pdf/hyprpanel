@@ -312,7 +312,11 @@ func (i *notificationItem) build(container *gtk.Box) error {
 	})
 
 	go func() {
-		<-i.timer.C
+		select {
+		case <-i.timer.C:
+		case <-i.closed:
+		}
+
 		i.close()
 	}()
 

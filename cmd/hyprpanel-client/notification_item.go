@@ -134,8 +134,9 @@ func (i *notificationItem) build(container *gtk.Box) error {
 	textContainer := gtk.NewBox(gtk.OrientationVerticalValue, 0)
 	i.AddRef(textContainer.Unref)
 
-	summary := gtk.NewLabel(i.data.Summary)
+	summary := gtk.NewLabel(``)
 	i.AddRef(summary.Unref)
+	summary.SetMarkup(i.data.Summary)
 	summary.SetSelectable(true)
 	summary.SetWrap(false)
 	summary.SetEllipsize(pango.EllipsizeEndValue)

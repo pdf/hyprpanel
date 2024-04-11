@@ -315,6 +315,12 @@ func (i *notificationItem) build(container *gtk.Box) error {
 		select {
 		case <-i.timer.C:
 		case <-i.closed:
+			if !i.timer.Stop() {
+				select {
+				case <-i.timer.C:
+				default:
+				}
+			}
 		}
 
 		i.close()

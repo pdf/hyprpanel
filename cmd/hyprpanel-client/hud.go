@@ -34,9 +34,10 @@ type hud struct {
 	itemBody          *gtk.Label
 	itemPercent       *gtk.Label
 	itemGauge         *gtk.ProgressBar
-	itemClosed        chan struct{}
 
-	timer *time.Timer
+	itemClosed     chan struct{}
+	timerInterrupt chan struct{}
+	timer          *time.Timer
 }
 
 func (h *hud) build(_ *gtk.Box) error {
@@ -223,6 +224,8 @@ func (h *hud) update(data *eventv1.HudNotificationValue) error {
 		case <-h.timer.C:
 		default:
 		}
+	} else {
+		h.timerInterrupt <- struct{}{}
 	}
 	h.timer.Reset(h.cfg.Timeout.AsDuration())
 
@@ -231,9 +234,17 @@ func (h *hud) update(data *eventv1.HudNotificationValue) error {
 	go func() {
 		select {
 		case <-h.timer.C:
+			h.closeItem()
+		case <-h.timerInterrupt:
+			return
 		case <-h.itemClosed:
+			if !h.timer.Stop() {
+				select {
+				case <-h.timer.C:
+				default:
+				}
+			}
 		}
-		h.closeItem()
 	}()
 
 	return nil
@@ -370,13 +381,14 @@ func (h *hud) close(_ *gtk.Box) {
 
 func newHud(panel *panel, cfg *modulev1.Hud) *hud {
 	h := &hud{
-		refTracker: newRefTracker(),
-		panel:      panel,
-		cfg:        cfg,
-		eventCh:    make(chan *eventv1.Event, 10),
-		quitCh:     make(chan struct{}),
-		itemClosed: make(chan struct{}, 1),
-		timer:      time.NewTimer(1),
+		refTracker:     newRefTracker(),
+		panel:          panel,
+		cfg:            cfg,
+		eventCh:        make(chan *eventv1.Event, 10),
+		quitCh:         make(chan struct{}),
+		itemClosed:     make(chan struct{}, 1),
+		timerInterrupt: make(chan struct{}, 1),
+		timer:          time.NewTimer(1),
 	}
 	h.AddRef(func() {
 		h.timer.Stop()
@@ -392,6 +404,8 @@ func newHud(panel *panel, cfg *modulev1.Hud) *hud {
 	h.AddRef(func() {
 		close(h.quitCh)
 		close(h.eventCh)
+		close(h.itemClosed)
+		close(h.timerInterrupt)
 	})
 
 	return h

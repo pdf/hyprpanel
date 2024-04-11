@@ -149,9 +149,9 @@ func (i *notificationItem) build(container *gtk.Box) error {
 	body := gtk.NewLabel(``)
 	i.AddRef(body.Unref)
 	body.SetSelectable(true)
-	// I'd love to be able to use SetMarkup here, but Thunderbird for example does not
-	// entity encode <> which results in empty notifications.
-	body.SetText(i.data.Body)
+	// Enable markup output, but beware that Thunderbird does not correclty encode their messages:
+	// https://bugzilla.mozilla.org/show_bug.cgi?id=1432209
+	body.SetMarkup(i.data.Body)
 	body.SetVexpand(true)
 	body.SetWrap(true)
 	body.SetWrapMode(pango.WrapWordCharValue)

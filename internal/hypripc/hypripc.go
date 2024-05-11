@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -193,7 +194,11 @@ func (h *HyprIPC) Dispatch(args ...string) error {
 }
 
 func (h *HyprIPC) send(args ...string) ([]byte, error) {
-	ctrl, err := net.Dial(`unix`, fmt.Sprintf("/tmp/hypr/%s/.socket.sock", os.Getenv(`HYPRLAND_INSTANCE_SIGNATURE`)))
+	sock, err := socketPath(`.socket.sock`)
+	if err != nil {
+		return nil, err
+	}
+	ctrl, err := net.Dial(`unix`, sock)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +319,11 @@ func (h *HyprIPC) readloop() {
 
 // New instantiates a new HyprIPC client
 func New(log hclog.Logger) (*HyprIPC, error) {
-	evtConn, err := net.Dial(`unix`, fmt.Sprintf("/tmp/hypr/%s/.socket2.sock", os.Getenv(`HYPRLAND_INSTANCE_SIGNATURE`)))
+	sock, err := socketPath(`.socket2.sock`)
+	if err != nil {
+		return nil, err
+	}
+	evtConn, err := net.Dial(`unix`, sock)
 	if err != nil {
 		return nil, err
 	}
@@ -545,4 +554,20 @@ func hyprToEvent(name Event, value string) (*eventv1.Event, error) {
 	default:
 		return eventv1.NewString(eventv1.EventKind_EVENT_KIND_UNSPECIFIED, value)
 	}
+}
+
+func socketPath(sock string) (string, error) {
+	s := path.Join(os.Getenv(`XDG_RUNTIME_DIR`), `hypr`, os.Getenv(`HYPRLAND_INSTANCE_SIGNATURE`), sock)
+	_, err := os.Stat(s)
+	if err == nil {
+		return s, nil
+	}
+
+	s = path.Join(`/tmp`, `hypr`, os.Getenv(`HYPRLAND_INSTANCE_SIGNATURE`), sock)
+	_, err = os.Stat(s)
+	if err != nil {
+		return ``, fmt.Errorf("hyprland socket not found: %w", err)
+	}
+
+	return s, nil
 }

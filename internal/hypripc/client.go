@@ -20,7 +20,7 @@ type Client struct {
 	Pid            int64         `json:"pid"`
 	Xwayland       bool          `json:"xwayland"`
 	Pinned         bool          `json:"pinned"`
-	Fullscreen     bool          `json:"fullscreen"`
+	Fullscreen     int           `json:"fullscreen"`
 	FullscreenMode int           `json:"fullscreenMode"`
 	FakeFullscreen bool          `json:"fakeFullscreen"`
 	Grouped        []interface{} `json:"grouped"`

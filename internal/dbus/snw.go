@@ -443,7 +443,6 @@ func (s *statusNotifierWatcher) watch() {
 
 					if err := item.updateStatus(); err != nil {
 						s.log.Debug(`Failed updating item`, `busName`, item.busName, `sig`, sig.Name, `err`, err)
-
 					}
 					if err := item.updateIcon(); err != nil {
 						s.log.Debug(`Failed updating item`, `busName`, item.busName, `sig`, sig.Name, `err`, err)
@@ -554,8 +553,22 @@ func (s *statusNotifierWatcher) watch() {
 	}
 }
 
-func (s *statusNotifierWatcher) close() {
-	close(s.quitCh)
+func (s *statusNotifierWatcher) close() error {
+	select {
+	case <-s.quitCh:
+	default:
+		close(s.quitCh)
+	}
+	reply, err := s.conn.ReleaseName(snwName)
+	if err != nil {
+		return err
+	}
+
+	if reply != dbus.ReleaseNameReplyReleased {
+		return fmt.Errorf(`unable to release SNW ownership`)
+	}
+
+	return nil
 }
 
 func newStatusNotifierWatcher(conn *dbus.Conn, logger hclog.Logger, eventCh chan *eventv1.Event) (*statusNotifierWatcher, error) {

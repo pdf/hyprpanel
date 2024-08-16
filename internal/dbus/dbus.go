@@ -82,7 +82,14 @@ func (c *Client) Events() <-chan *eventv1.Event {
 func (c *Client) Close() error {
 	close(c.quitCh)
 	if c.snw != nil {
-		c.snw.close()
+		if err := c.snw.close(); err != nil {
+			c.log.Warn(`Failed closing SNW session`, `err`, err)
+		}
+	}
+	if c.notifications != nil {
+		if err := c.snw.close(); err != nil {
+			c.log.Warn(`Failed closing Notifications session`, `err`, err)
+		}
 	}
 	if c.globalShortcuts != nil {
 		if err := c.globalShortcuts.close(); err != nil {

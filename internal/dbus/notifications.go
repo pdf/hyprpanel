@@ -200,7 +200,6 @@ func (n *notifications) init() error {
 	}
 
 	return nil
-
 }
 
 func (n *notifications) Closed(id uint32, reason hyprpanelv1.NotificationClosedReason) error {
@@ -216,6 +215,19 @@ func (n *notifications) Action(id uint32, actionKey string) error {
 	if err := n.conn.Emit(notificationsPath, notificationsSignalActionInvoked, id, actionKey); err != nil {
 		return &dbus.ErrMsgInvalidArg
 	}
+	return nil
+}
+
+func (n *notifications) close() error {
+	reply, err := n.conn.ReleaseName(snwName)
+	if err != nil {
+		return err
+	}
+
+	if reply != dbus.ReleaseNameReplyReleased {
+		return fmt.Errorf(`unable to release SNW ownership`)
+	}
+
 	return nil
 }
 
@@ -257,7 +269,7 @@ func hintToAny(name NotificationHintKey, val dbus.Variant) (*anypb.Any, error) {
 		}
 		return anypb.New(wrapperspb.Int32(v))
 	case NotificationHintKeyImageData, NotificationHintKeyImageDataAlt, NotificationHintKeyIconDataAlt:
-		var v = &eventv1.NotificationValue_Pixmap{}
+		v := &eventv1.NotificationValue_Pixmap{}
 		if err := val.Store(v); err != nil {
 			return nil, err
 		}

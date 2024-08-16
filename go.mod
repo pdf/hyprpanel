@@ -1,6 +1,6 @@
 module github.com/pdf/hyprpanel
 
-go 1.21.5
+go 1.23.0
 
 require (
 	github.com/fsnotify/fsnotify v1.7.0

@@ -199,6 +199,10 @@ func (p *power) updatePower(objPath dbus.ObjectPath, props map[string]dbus.Varia
 		}
 	}
 
+	if powerValue.Model == `` {
+		powerValue.Model = powerValue.Id
+	}
+
 	p.cachePower[powerValue.Id] = powerValue
 
 	powerData, err := anypb.New(powerValue)
@@ -318,9 +322,6 @@ func (p *power) watch() {
 				}
 				switch sig.Name {
 				case fdoPropertiesSignalPropertiesChanged:
-					if sig.Path != p.displayDevicePath {
-						continue
-					}
 					if len(sig.Body) != 3 {
 						p.log.Warn(`Failed parsing DBUS PropertiesChanged body`, `body`, sig.Body)
 						continue

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/jwijenbergh/puregotk/v4/glib"
@@ -11,11 +12,38 @@ import (
 	"github.com/pdf/hyprpanel/style"
 )
 
+type powerChangeCache map[string]*eventv1.PowerChangeValue
+
+type powerChangeSort []*eventv1.PowerChangeValue
+
+func (p powerChangeSort) Len() int {
+	return len(p)
+}
+
+func (p powerChangeSort) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+
+func (p powerChangeSort) Less(i, j int) bool {
+	return p[i].Id < p[j].Id
+}
+
+func (p powerChangeCache) toSlice() powerChangeSort {
+	res := make(powerChangeSort, len(p))
+	i := 0
+	for _, v := range p {
+		res[i] = v
+		i++
+	}
+
+	return res
+}
+
 type power struct {
 	*refTracker
 	panel   *panel
 	cfg     *modulev1.Power
-	data    *eventv1.PowerChangeValue
+	cache   powerChangeCache
 	tooltip string
 	eventCh chan *eventv1.Event
 	quitCh  chan struct{}
@@ -24,29 +52,24 @@ type power struct {
 	icon      *gtk.Image
 }
 
-func (p *power) update(evt *eventv1.PowerChangeValue) error {
-	var err error
-
-	defer func() {
-		p.data = evt
-	}()
-
-	if p.data == nil || p.data.Icon != evt.Icon {
-		if p.icon != nil {
-			icon := p.icon
-			defer icon.Unref()
-			p.icon = nil
-		}
-		p.icon, err = createIcon(evt.Icon, int(p.cfg.IconSize), p.cfg.IconSymbolic, nil)
-
-		if err != nil {
-			return err
-		}
-
-		p.container.SetCenterWidget(&p.icon.Widget)
+func writeTooltip(evt *eventv1.PowerChangeValue, tooltip *strings.Builder) {
+	if evt.State == eventv1.PowerState_POWER_STATE_UNSPECIFIED {
+		return
 	}
 
-	var tooltip strings.Builder
+	if evt.Vendor != `` {
+		tooltip.WriteString(evt.Vendor)
+		tooltip.WriteString(` `)
+	}
+	if evt.Model != `` {
+		tooltip.WriteString(evt.Model)
+	} else {
+		tooltip.WriteString(eventv1.PowerDefaultID)
+	}
+	if tooltip.Len() == 0 {
+		tooltip.WriteString(`Unknown`)
+	}
+	tooltip.WriteString(` - `)
 	switch evt.State {
 	case eventv1.PowerState_POWER_STATE_CHARGING:
 		tooltip.WriteString(`Charging`)
@@ -82,13 +105,49 @@ func (p *power) update(evt *eventv1.PowerChangeValue) error {
 		tooltip.WriteString(`Unknown`)
 		tooltip.WriteString(fmt.Sprintf(" (%d%%)", evt.Percentage))
 	}
+}
 
-	if p.data == nil || p.tooltip != tooltip.String() {
+func (p *power) update(evt *eventv1.PowerChangeValue) error {
+	var err error
+
+	if evt.Id == eventv1.PowerDefaultID {
+		prev, hasPrev := p.cache[evt.Id]
+		p.cache[evt.Id] = evt
+		if !hasPrev || prev.Icon != evt.Icon {
+			if p.icon != nil {
+				icon := p.icon
+				defer icon.Unref()
+				p.icon = nil
+			}
+			p.icon, err = createIcon(evt.Icon, int(p.cfg.IconSize), p.cfg.IconSymbolic, nil)
+			if err != nil {
+				return err
+			}
+
+			p.container.SetCenterWidget(&p.icon.Widget)
+		}
+		return nil
+	}
+
+	tooltip := &strings.Builder{}
+	p.cache[evt.Id] = evt
+	s := p.cache.toSlice()
+	sort.Sort(s)
+
+	for i, v := range s {
+		if v.Id == eventv1.PowerDefaultID || evt.State == eventv1.PowerState_POWER_STATE_UNSPECIFIED {
+			continue
+		}
+		writeTooltip(v, tooltip)
+		if i < len(s)-1 {
+			tooltip.WriteString("\n")
+		}
+	}
+
+	if p.tooltip != tooltip.String() {
 		p.tooltip = tooltip.String()
 		p.container.SetTooltipText(p.tooltip)
 	}
-
-	p.data = evt
 
 	return nil
 }
@@ -151,9 +210,6 @@ func (p *power) watch() {
 						log.Warn(`Invalid event`, `module`, style.PowerID, `err`, err, `evt`, evt)
 						continue
 					}
-					if data.Id != eventv1.PowerDefaultID {
-						continue
-					}
 
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
@@ -185,6 +241,7 @@ func newPower(p *panel, cfg *modulev1.Power) *power {
 		refTracker: newRefTracker(),
 		panel:      p,
 		cfg:        cfg,
+		cache:      make(powerChangeCache),
 		eventCh:    make(chan *eventv1.Event),
 		quitCh:     make(chan struct{}),
 	}

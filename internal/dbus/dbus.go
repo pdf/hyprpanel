@@ -87,7 +87,7 @@ func (c *Client) Close() error {
 		}
 	}
 	if c.notifications != nil {
-		if err := c.snw.close(); err != nil {
+		if err := c.notifications.close(); err != nil {
 			c.log.Warn(`Failed closing Notifications session`, `err`, err)
 		}
 	}

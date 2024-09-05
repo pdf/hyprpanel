@@ -53,10 +53,7 @@ type power struct {
 }
 
 func writeTooltip(evt *eventv1.PowerChangeValue, tooltip *strings.Builder) {
-	if evt.State == eventv1.PowerState_POWER_STATE_UNSPECIFIED {
-		return
-	}
-
+	tooltip.WriteString(fmt.Sprintf("<span weight=\"bold\">%d%%</span> ", evt.Percentage))
 	if evt.Vendor != `` {
 		tooltip.WriteString(evt.Vendor)
 		tooltip.WriteString(` `)
@@ -69,41 +66,35 @@ func writeTooltip(evt *eventv1.PowerChangeValue, tooltip *strings.Builder) {
 	if tooltip.Len() == 0 {
 		tooltip.WriteString(`Unknown`)
 	}
-	tooltip.WriteString(` - `)
 	switch evt.State {
 	case eventv1.PowerState_POWER_STATE_CHARGING:
-		tooltip.WriteString(`Charging`)
-		tooltip.WriteString(fmt.Sprintf(" (%d%%)", evt.Percentage))
+		tooltip.WriteString(` (<span style="italic">Charging`)
 		timeToFull := evt.TimeToFull.AsDuration()
 		if timeToFull > 0 {
-			tooltip.WriteString("\r")
+			tooltip.WriteString(" - ")
 			tooltip.WriteString(timeToFull.String())
 			tooltip.WriteString(` until charged`)
 		}
+		tooltip.WriteString(`</span>)`)
 	case eventv1.PowerState_POWER_STATE_DISCHARGING:
-		tooltip.WriteString(`Discharging`)
-		tooltip.WriteString(fmt.Sprintf(" (%d%%)", evt.Percentage))
+		tooltip.WriteString(` (<span style="italic">Discharging`)
 		timeToEmpty := evt.TimeToEmpty.AsDuration()
 		if timeToEmpty > 0 {
-			tooltip.WriteString("\r")
+			tooltip.WriteString(" - ")
 			tooltip.WriteString(timeToEmpty.String())
 			tooltip.WriteString(` until empty`)
 		}
+		tooltip.WriteString(`</span>)`)
 	case eventv1.PowerState_POWER_STATE_EMPTY:
-		tooltip.WriteString(`Empty!`)
-		tooltip.WriteString(fmt.Sprintf(" (%d%%)", evt.Percentage))
+		tooltip.WriteString(` (<span style="italic">Empty!</span>)`)
 	case eventv1.PowerState_POWER_STATE_FULLY_CHARGED:
-		tooltip.WriteString(`Fully Charged`)
-		tooltip.WriteString(fmt.Sprintf(" (%d%%)", evt.Percentage))
+		tooltip.WriteString(` (<span style="italic">Fully Charged</span>)`)
 	case eventv1.PowerState_POWER_STATE_PENDING_CHARGE:
-		tooltip.WriteString(`Pending Charge`)
-		tooltip.WriteString(fmt.Sprintf(" (%d%%)", evt.Percentage))
+		tooltip.WriteString(` (<span style="italic">Pending Charge</span>)`)
 	case eventv1.PowerState_POWER_STATE_PENDING_DISCHARGE:
-		tooltip.WriteString(`Pending Discharge`)
-		tooltip.WriteString(fmt.Sprintf(" (%d%%)", evt.Percentage))
+		tooltip.WriteString(` (<span style="italic">Pending Discharge</span>)`)
 	default:
-		tooltip.WriteString(`Unknown`)
-		tooltip.WriteString(fmt.Sprintf(" (%d%%)", evt.Percentage))
+		tooltip.WriteString(` (<span style="italic">Unknown</span>)`)
 	}
 }
 
@@ -135,18 +126,19 @@ func (p *power) update(evt *eventv1.PowerChangeValue) error {
 	sort.Sort(s)
 
 	for i, v := range s {
-		if v.Id == eventv1.PowerDefaultID || evt.State == eventv1.PowerState_POWER_STATE_UNSPECIFIED {
+		if v.Id == eventv1.PowerDefaultID || v.State == eventv1.PowerState_POWER_STATE_UNSPECIFIED {
 			continue
 		}
-		writeTooltip(v, tooltip)
-		if i < len(s)-1 {
+
+		if i > 0 && tooltip.Len() > 0 {
 			tooltip.WriteString("\n")
 		}
+		writeTooltip(v, tooltip)
 	}
 
 	if p.tooltip != tooltip.String() {
 		p.tooltip = tooltip.String()
-		p.container.SetTooltipText(p.tooltip)
+		p.container.SetTooltipMarkup(p.tooltip)
 	}
 
 	return nil

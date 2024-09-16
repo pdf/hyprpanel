@@ -274,7 +274,7 @@ func (s *systray) watch() {
 						log.Error(`Invalid event`, `module`, style.SystrayID, `event`, evt)
 						continue
 					}
-					log.Debug(`Deleting item`, `module`, style.SystrayID, `busName`, data)
+					log.Trace(`Deleting item`, `module`, style.SystrayID, `busName`, data)
 
 					var deleteCb glib.SourceFunc
 					deleteCb = func(uintptr) bool {

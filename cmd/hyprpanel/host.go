@@ -182,7 +182,7 @@ func (h *host) runPanel(clientPath string, layerShellPath string, prevPreload st
 	if socketDir == `` {
 		if runDir := os.Getenv(`XDG_RUNTIME_DIR`); runDir != `` {
 			socketDir = filepath.Join(runDir, `hyprpanel`)
-			if err := os.MkdirAll(socketDir, 0750); err != nil && err != os.ErrExist {
+			if err := os.MkdirAll(socketDir, 0o750); err != nil && err != os.ErrExist {
 				h.log.Warn(`Could not create socket dir`, `path`, socketDir, `err`, err)
 			} else {
 				os.Setenv(plugin.EnvUnixSocketDir, socketDir)
@@ -370,15 +370,6 @@ func (h *host) run() error {
 	}
 
 	grp, errCtx := errgroup.WithContext(context.Background())
-	unstarted := make(chan struct{}, 1)
-	unstarted <- struct{}{}
-	defer func() {
-		// Block return until client shuts down
-		select {
-		case <-unstarted:
-		case <-errCtx.Done():
-		}
-	}()
 
 	if err := h.connectDBUS(); err != nil {
 		return fmt.Errorf("DBUS connection failed: %w", err)
@@ -423,7 +414,6 @@ func (h *host) run() error {
 			return fmt.Errorf("panel %s failed: %w", cfg.Id, panel.Context().Err())
 		})
 	}
-	<-unstarted
 
 	go h.watch(hyprEvtCh)
 

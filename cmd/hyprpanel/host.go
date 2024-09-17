@@ -38,6 +38,8 @@ type host struct {
 	stylesheet  []byte
 	log         hclog.Logger
 	pluginLog   hclog.Logger
+	hypr        *hypripc.HyprIPC
+	hyprEvtCh   <-chan *eventv1.Event
 	dbus        *dbus.Client
 	dbusEvtCh   <-chan *eventv1.Event
 	audio       *audio.Client
@@ -229,7 +231,7 @@ func (h *host) updateStyle(stylesheet []byte) {
 	h.reloadCh <- struct{}{}
 }
 
-func (h *host) watch(hyprEvtCh <-chan *eventv1.Event) {
+func (h *host) watch() {
 	for {
 		select {
 		case <-h.stopWatchCh:
@@ -242,7 +244,7 @@ func (h *host) watch(hyprEvtCh <-chan *eventv1.Event) {
 				return
 			case <-h.quitCh:
 				return
-			case evt, ok := <-hyprEvtCh:
+			case evt, ok := <-h.hyprEvtCh:
 				if !ok || evt == nil {
 					h.log.Error(`Received from closed hypr event channel`)
 					return
@@ -385,16 +387,14 @@ func (h *host) run() error {
 		defer h.audio.Close()
 	}
 
-	hypr, err := hypripc.New(h.log)
+	hyprCancel, err := h.connectHypr()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("hypr connection failed: %w", err)
 	}
-	hyprEvtCh, cancel := hypr.Subscribe()
 	defer func() {
-		cancel()
-		hypr.Close()
+		hyprCancel()
+		h.hypr.Close()
 	}()
-	hypr.StartEvents()
 
 	prevPreload := os.Getenv(`LD_PRELOAD`)
 	h.panels = make([]panelplugin.Panel, len(h.cfg.Panels))
@@ -415,7 +415,7 @@ func (h *host) run() error {
 		})
 	}
 
-	go h.watch(hyprEvtCh)
+	go h.watch()
 
 	select {
 	case <-h.reloadCh:
@@ -442,19 +442,28 @@ func (h *host) Close() {
 	close(h.quitCh)
 }
 
+func (h *host) connectHypr() (hypripc.CancelFunc, error) {
+	var err error
+	h.hypr, err = hypripc.New(h.log)
+	if err != nil {
+		panic(err)
+	}
+	var cancel hypripc.CancelFunc
+	h.hyprEvtCh, cancel = h.hypr.Subscribe()
+	h.hypr.StartEvents()
+
+	return cancel, nil
+}
+
 func (h *host) connectDBUS() error {
 	if h.cfg.Dbus == nil || !h.cfg.Dbus.Enabled {
 		return nil
 	}
 
-	dbusClient, dbusEventCh, err := dbus.New(h.cfg.Dbus, h.log)
-	if err != nil {
-		return fmt.Errorf(`could not connect to DBUS session: %w`, err)
-	}
-	h.dbus = dbusClient
-	h.dbusEvtCh = dbusEventCh
+	var err error
+	h.dbus, h.dbusEvtCh, err = dbus.New(h.cfg.Dbus, h.log)
 
-	return nil
+	return err
 }
 
 func (h *host) connectAudio() error {
@@ -476,8 +485,6 @@ func newHost(cfg *configv1.Config, stylesheet []byte, log hclog.Logger) (*host, 
 		pluginLog:   log.Named(`plugin`),
 		reloadCh:    make(chan struct{}),
 		stopWatchCh: make(chan struct{}),
-		dbusEvtCh:   make(<-chan *eventv1.Event),
-		audioEvtCh:  make(<-chan *eventv1.Event),
 		quitCh:      make(chan struct{}),
 	}
 

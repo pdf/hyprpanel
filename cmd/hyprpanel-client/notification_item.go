@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/jwijenbergh/puregotk/v4/gdk"
+	"github.com/jwijenbergh/puregotk/v4/glib"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"github.com/jwijenbergh/puregotk/v4/pango"
 	"github.com/pdf/hyprpanel/internal/dbus"
@@ -35,8 +36,19 @@ func (i *notificationItem) build(container *gtk.Box) error {
 	i.container.SetHexpand(false)
 
 	revealCb := func() {
+		select {
+		case <-i.closed:
+			return
+		default:
+		}
 		if !i.container.GetChildRevealed() {
-			i.container.Hide()
+			var cb glib.SourceFunc
+			cb = func(uintptr) bool {
+				defer unrefCallback(&cb)
+				i.container.Hide()
+				return false
+			}
+			glib.IdleAdd(&cb, 0)
 		}
 	}
 	i.AddRef(func() {
@@ -46,9 +58,20 @@ func (i *notificationItem) build(container *gtk.Box) error {
 
 	var unmapCb func(gtk.Widget)
 	unmapCb = func(_ gtk.Widget) {
+		select {
+		case <-i.closed:
+			return
+		default:
+		}
 		defer unrefCallback(&unmapCb)
 		close(i.closed)
-		i.n.deleteNotification(i.data.Id)
+		var cb glib.SourceFunc
+		cb = func(uintptr) bool {
+			defer unrefCallback(cb)
+			i.n.deleteNotification(i.data.Id)
+			return false
+		}
+		glib.IdleAdd(&cb, 0)
 	}
 	i.container.ConnectUnmap(&unmapCb)
 
@@ -232,6 +255,12 @@ func (i *notificationItem) build(container *gtk.Box) error {
 	clickController := gtk.NewGestureClick()
 	clickController.SetButton(0)
 	clickCb := func(ctrl gtk.GestureClick, nPress int, x, y float64) {
+		var closeCb glib.SourceFunc
+		closeCb = func(uintptr) bool {
+			defer unrefCallback(&closeCb)
+			i.close()
+			return false
+		}
 		switch ctrl.GetCurrentButton() {
 		case uint(gdk.BUTTON_PRIMARY):
 			if !hasDefaultAction {
@@ -263,9 +292,9 @@ func (i *notificationItem) build(container *gtk.Box) error {
 					break
 				}
 			}
-			i.close()
+			glib.IdleAdd(&closeCb, 0)
 		case uint(gdk.BUTTON_MIDDLE):
-			i.close()
+			glib.IdleAdd(&closeCb, 0)
 		}
 	}
 	i.AddRef(func() {
@@ -333,15 +362,26 @@ func (i *notificationItem) build(container *gtk.Box) error {
 }
 
 func (i *notificationItem) close() {
+	select {
+	case <-i.closed:
+		return
+	default:
+	}
 	i.container.SetRevealChild(false)
 	// Hack around reveal-child signal unreliability by explicitly hiding after a delay
 	time.AfterFunc(500*time.Millisecond, func() {
 		select {
 		case <-i.closed:
 		default:
-			if i.container.IsVisible() {
-				i.container.Hide()
+			var cb glib.SourceFunc
+			cb = func(uintptr) bool {
+				defer unrefCallback(&cb)
+				if i.container.IsVisible() {
+					i.container.Hide()
+				}
+				return false
 			}
+			glib.IdleAdd(&cb, 0)
 		}
 	})
 }

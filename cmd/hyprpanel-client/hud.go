@@ -59,9 +59,15 @@ func (h *hud) buildItem() error {
 	h.item.SetTransitionType(gtk.RevealerTransitionTypeCrossfadeValue)
 
 	revealCb := func() {
-		if !h.item.GetChildRevealed() {
-			h.item.Hide()
+		var cb glib.SourceFunc
+		cb = func(uintptr) bool {
+			defer unrefCallback(&cb)
+			if !h.item.GetChildRevealed() {
+				h.item.Hide()
+			}
+			return false
 		}
+		glib.IdleAdd(&cb, 0)
 	}
 	h.item.ConnectSignal(`notify::child-revealed`, &revealCb)
 	h.AddRef(func() {
@@ -322,7 +328,13 @@ func (h *hud) showNotification() {
 }
 
 func (h *hud) hideNotification() {
-	h.overlay.SetVisible(false)
+	var cb glib.SourceFunc
+	cb = func(uintptr) bool {
+		defer unrefCallback(&cb)
+		h.overlay.SetVisible(false)
+		return false
+	}
+	glib.IdleAdd(&cb, 0)
 }
 
 func (h *hud) events() chan<- *eventv1.Event {

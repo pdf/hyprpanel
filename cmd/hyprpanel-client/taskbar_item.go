@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"sort"
+	"time"
 
 	"github.com/jwijenbergh/puregotk/v4/gdk"
 	"github.com/jwijenbergh/puregotk/v4/gio"
@@ -28,9 +29,11 @@ type sortableClients []*hypripc.Client
 func (s sortableClients) Len() int {
 	return len(s)
 }
+
 func (s sortableClients) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
+
 func (s sortableClients) Less(i, j int) bool {
 	return s[i].Address < s[j].Address
 }
@@ -324,6 +327,18 @@ func (i *taskbarItem) launchIndicator() {
 	}
 	spinner.Start()
 	i.indicator.Append(&spinner.Widget)
+	go func() {
+		<-time.After(7 * time.Second)
+
+		var cb glib.SourceFunc
+		cb = func(uintptr) bool {
+			defer unrefCallback(&cb)
+			i.updateIndicator()
+			return false
+		}
+
+		glib.IdleAdd(&cb, 0)
+	}()
 }
 
 func (i *taskbarItem) updateIndicator() {

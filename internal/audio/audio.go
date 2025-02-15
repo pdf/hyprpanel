@@ -21,9 +21,7 @@ const (
 	exceedVolumeFactor = 1.3
 )
 
-var (
-	volumeMax = int32(math.Floor(float64(proto.VolumeNorm) * exceedVolumeFactor))
-)
+var volumeMax = int32(math.Floor(float64(proto.VolumeNorm) * exceedVolumeFactor))
 
 // Client for pulseaudio.
 type Client struct {
@@ -59,6 +57,12 @@ func (c *Client) SinkVolumeAdjust(sinkName string, direction eventv1.Direction) 
 			}
 
 			vol += int32(proto.VolumeNorm) / 100 * int32(c.cfg.VolumeStepPercent)
+			if v, ok := c.cacheSink[info.SinkName]; ok {
+				// Clamp volume to 100% when increasing from below 100%.
+				if v.Volume < int32(proto.VolumeNorm) && vol > int32(proto.VolumeNorm) {
+					vol = int32(proto.VolumeNorm)
+				}
+			}
 			if c.cfg.VolumeExceedMaximum && vol > volumeMax {
 				vol = volumeMax
 			} else if !c.cfg.VolumeExceedMaximum && vol > int32(proto.VolumeNorm) {

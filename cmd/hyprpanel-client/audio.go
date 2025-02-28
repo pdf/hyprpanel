@@ -12,56 +12,101 @@ import (
 	"github.com/pdf/hyprpanel/style"
 )
 
+const (
+	audioSinkIconScale   = 0.9
+	audioSourceIconScale = 0.4
+)
+
 type audio struct {
 	*refTracker
-	panel              *panel
-	cfg                *modulev1.Audio
-	container          *gtk.CenterBox
-	icon               *gtk.Image
-	tooltip            string
-	defaultSinkID      string
-	defaultSinkName    string
-	defaultSinkVolume  int32
-	defaultSinkPercent float64
-	defaultSinkMute    bool
-	defaultSourceID    string
-	eventCh            chan *eventv1.Event
-	quitCh             chan struct{}
+	panel                *panel
+	cfg                  *modulev1.Audio
+	container            *gtk.CenterBox
+	inner                *gtk.Fixed
+	sinkContainer        *gtk.CenterBox
+	sinkIcon             *gtk.Image
+	sourceContainer      *gtk.CenterBox
+	sourceIcon           *gtk.Image
+	tooltip              string
+	defaultSinkID        string
+	defaultSinkName      string
+	defaultSinkVolume    int32
+	defaultSinkPercent   float64
+	defaultSinkMute      bool
+	defaultSourceID      string
+	defaultSourceName    string
+	defaultSourceVolume  int32
+	defaultSourcePercent float64
+	defaultSourceMute    bool
+	eventCh              chan *eventv1.Event
+	quitCh               chan struct{}
 }
 
 func (a *audio) update() error {
-	if a.icon != nil {
-		icon := a.icon
-		defer icon.Unref()
-		a.icon = nil
+	if a.sinkIcon != nil {
+		sinkIcon := a.sinkIcon
+		defer sinkIcon.Unref()
+		a.sinkIcon = nil
+		if a.cfg.EnableSource {
+			sourceIcon := a.sourceIcon
+			defer sourceIcon.Unref()
+			a.sourceIcon = nil
+		}
 	}
 
 	var err error
+	sinkIconScale := 1.0
+	if a.cfg.EnableSource {
+		sinkIconScale = audioSinkIconScale
+	}
+	sinkSize := int(float64(a.cfg.IconSize) * sinkIconScale)
 	if a.defaultSinkMute {
-		a.icon, err = createIcon(`audio-volume-muted`, int(a.cfg.IconSize), a.cfg.IconSymbolic, nil)
+		a.sinkIcon, err = createIcon(`audio-volume-muted`, sinkSize, a.cfg.IconSymbolic, nil)
 	} else {
 		switch {
 		case a.defaultSinkPercent >= 1:
-			a.icon, err = createIcon(`audio-volume-high`, int(a.cfg.IconSize), a.cfg.IconSymbolic, nil)
+			a.sinkIcon, err = createIcon(`audio-volume-high`, sinkSize, a.cfg.IconSymbolic, nil)
 		case a.defaultSinkPercent >= 0.5:
-			a.icon, err = createIcon(`audio-volume-medium`, int(a.cfg.IconSize), a.cfg.IconSymbolic, nil)
+			a.sinkIcon, err = createIcon(`audio-volume-medium`, sinkSize, a.cfg.IconSymbolic, nil)
 		case a.defaultSinkPercent > 0:
-			a.icon, err = createIcon(`audio-volume-low`, int(a.cfg.IconSize), a.cfg.IconSymbolic, nil)
+			a.sinkIcon, err = createIcon(`audio-volume-low`, sinkSize, a.cfg.IconSymbolic, nil)
 		default:
-			a.icon, err = createIcon(`audio-volume-muted`, int(a.cfg.IconSize), a.cfg.IconSymbolic, nil)
+			a.sinkIcon, err = createIcon(`audio-volume-muted`, sinkSize, a.cfg.IconSymbolic, nil)
 		}
 	}
 	if err != nil {
 		return err
 	}
+	a.sinkContainer.SetCenterWidget(&a.sinkIcon.Widget)
 
-	a.container.SetCenterWidget(&a.icon.Widget)
+	if a.cfg.EnableSource {
+		sourceSize := int(float64(a.cfg.IconSize) * audioSourceIconScale)
+		if a.defaultSourceMute {
+			a.sourceIcon, err = createIcon(`audio-input-microphone-muted`, sourceSize, a.cfg.IconSymbolic, nil)
+			a.sourceContainer.AddCssClass(style.DisabledClass)
+		} else {
+			a.sourceContainer.RemoveCssClass(style.DisabledClass)
+			switch {
+			case a.defaultSourcePercent >= 1:
+				a.sourceIcon, err = createIcon(`audio-input-microphone-high`, sourceSize, a.cfg.IconSymbolic, nil)
+			case a.defaultSourcePercent >= 0.5:
+				a.sourceIcon, err = createIcon(`audio-input-microphone-medium`, sourceSize, a.cfg.IconSymbolic, nil)
+			case a.defaultSourcePercent > 0:
+				a.sourceIcon, err = createIcon(`audio-input-microphone-low`, sourceSize, a.cfg.IconSymbolic, nil)
+			default:
+				a.sourceIcon, err = createIcon(`audio-input-microphone-muted`, sourceSize, a.cfg.IconSymbolic, nil)
+			}
+		}
+		if err != nil {
+			return err
+		}
+		a.sourceContainer.SetCenterWidget(&a.sourceIcon.Widget)
+	}
 
 	var tooltip strings.Builder
 	tooltip.WriteString(`<span weight="bold">`)
 	if a.defaultSinkMute {
-		tooltip.WriteString(`[Muted]`)
-
+		tooltip.WriteString(`Mute`)
 	} else {
 		tooltip.WriteString(strconv.Itoa(int(a.defaultSinkPercent * 100)))
 		tooltip.WriteString(`%`)
@@ -71,6 +116,23 @@ func (a *audio) update() error {
 		tooltip.WriteString(`<span> `)
 		tooltip.WriteString(a.defaultSinkName)
 		tooltip.WriteString(`</span>`)
+	}
+
+	if a.cfg.EnableSource {
+		tooltip.WriteString("\n")
+		tooltip.WriteString(`<span weight="bold">`)
+		if a.defaultSourceMute {
+			tooltip.WriteString(`Mute`)
+		} else {
+			tooltip.WriteString(strconv.Itoa(int(a.defaultSourcePercent * 100)))
+			tooltip.WriteString(`%`)
+		}
+		tooltip.WriteString(`</span>`)
+		if a.defaultSourceName != `` {
+			tooltip.WriteString(`<span> `)
+			tooltip.WriteString(a.defaultSourceName)
+			tooltip.WriteString(`</span>`)
+		}
 	}
 
 	if a.tooltip != tooltip.String() {
@@ -87,9 +149,35 @@ func (a *audio) build(container *gtk.Box) error {
 	a.container = gtk.NewCenterBox()
 	a.container.SetName(style.AudioID)
 	a.container.AddCssClass(style.ModuleClass)
-	a.icon, err = createIcon(`audio-volume-high`, int(a.cfg.IconSize), a.cfg.IconSymbolic, nil)
+	a.inner = gtk.NewFixed()
+	a.inner.SetSizeRequest(int(a.cfg.IconSize), int(a.cfg.IconSize))
+
+	sinkIconScale := 1.0
+	if a.cfg.EnableSource {
+		sinkIconScale = audioSinkIconScale
+	}
+	sinkSize := int(float64(a.cfg.IconSize) * sinkIconScale)
+	a.sinkContainer = gtk.NewCenterBox()
+	a.sinkContainer.SetSizeRequest(sinkSize, sinkSize)
+	a.sinkIcon, err = createIcon(`audio-volume-high`, sinkSize, a.cfg.IconSymbolic, nil)
 	if err != nil {
 		return err
+	}
+	a.sinkContainer.SetCenterWidget(&a.sinkIcon.Widget)
+	a.inner.Put(&a.sinkContainer.Widget, 0, 0)
+
+	if a.cfg.EnableSource {
+		sourceSize := int(float64(a.cfg.IconSize) * audioSourceIconScale)
+		sourcePos := float64(int(a.cfg.IconSize) - sourceSize)
+		a.sourceContainer = gtk.NewCenterBox()
+		a.sourceContainer.SetSizeRequest(sourceSize, sourceSize)
+		a.sourceContainer.AddCssClass(style.OverlayClass)
+		a.sourceIcon, err = createIcon(`audio-input-microphone-high`, sourceSize, a.cfg.IconSymbolic, nil)
+		if err != nil {
+			return err
+		}
+		a.sourceContainer.SetCenterWidget(&a.sourceIcon.Widget)
+		a.inner.Put(&a.sourceContainer.Widget, sourcePos, sourcePos)
 	}
 
 	scrollCb := func(_ gtk.EventControllerScroll, dx, dy float64) bool {
@@ -138,8 +226,7 @@ func (a *audio) build(container *gtk.Box) error {
 	clickController.ConnectReleased(&clickCb)
 	a.container.AddController(&clickController.EventController)
 
-	a.container.SetCenterWidget(&a.icon.Widget)
-
+	a.container.SetCenterWidget(&a.inner.Widget)
 	container.Append(&a.container.Widget)
 
 	if err := a.update(); err != nil {
@@ -180,7 +267,11 @@ func (a *audio) watch() {
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
 						defer unrefCallback(&cb)
-						if data.Default && (data.Id != a.defaultSinkID || data.Name != a.defaultSinkName) {
+						if !data.Default {
+							return false
+						}
+
+						if data.Id != a.defaultSinkID || data.Name != a.defaultSinkName {
 							a.defaultSinkID = data.Id
 							a.defaultSinkName = data.Name
 						}
@@ -208,8 +299,19 @@ func (a *audio) watch() {
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
 						defer unrefCallback(&cb)
-						if data.Default && data.Id != a.defaultSourceID {
+						if !data.Default {
+							return false
+						}
+
+						if data.Id != a.defaultSourceID || data.Name != a.defaultSourceName {
 							a.defaultSourceID = data.Id
+							a.defaultSourceName = data.Name
+						}
+						a.defaultSourcePercent = data.Percent
+						a.defaultSourceVolume = data.Volume
+						a.defaultSourceMute = data.Mute
+						if err := a.update(); err != nil {
+							log.Warn(`Failed updating`, `module`, style.AudioID, `err`, err)
 						}
 						return false
 					}
@@ -225,7 +327,7 @@ func (a *audio) close(container *gtk.Box) {
 	defer a.Unref()
 	log.Debug(`Closing module on request`, `module`, style.AudioID)
 	container.Remove(&a.container.Widget)
-	a.icon.Unref()
+	a.sinkIcon.Unref()
 }
 
 func newAudio(p *panel, cfg *modulev1.Audio) *audio {

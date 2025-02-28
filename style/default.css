@@ -127,6 +127,16 @@ flowboxchild {
 	background-color: @Indicator;
 }
 
+#audio .overlay {
+	border: alpha(@Highlight, 0.90) 2px solid;
+	border-radius: 2px;
+	background-color: alpha(@PanelBackground, 0.95);
+}
+
+#audio .disabled {
+	border: alpha(@Border, 0.90) 2px solid;
+}
+
 #notificationsOverlay {
 	background-color: rgba(0, 0, 0, 0);
 }
@@ -197,4 +207,3 @@ flowboxchild {
 	margin: 0px 12px 16px 12px;
 	font-size: 2rem;
 }
-

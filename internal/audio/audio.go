@@ -6,6 +6,7 @@ import (
 	"math"
 	"net"
 	"os"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/jfreymuth/pulse/proto"
@@ -188,11 +189,12 @@ func (c *Client) pollSink(idx uint32, name string) error {
 	}
 	vol /= uint64(len(info.ChannelVolumes))
 
+	percent := math.Round(float64(vol)/float64(int32(proto.VolumeNorm))*100) / 100
 	sinkValue := &eventv1.AudioSinkChangeValue{
 		Id:         info.SinkName,
 		Name:       info.Device,
 		Volume:     int32(vol),
-		Percent:    math.Round(float64(vol)/float64(proto.VolumeNorm)*100) / 100,
+		Percent:    percent,
 		PercentMax: exceedVolumeFactor,
 		Mute:       info.Mute,
 	}
@@ -236,7 +238,6 @@ func (c *Client) pollSink(idx uint32, name string) error {
 		return nil
 	}
 
-	percent := math.Round(float64(vol)/float64(int32(proto.VolumeNorm))*100) / 100
 	icon := `audio-volume-muted`
 	if !info.Mute {
 		switch {
@@ -285,11 +286,12 @@ func (c *Client) pollSource(idx uint32, name string) error {
 	}
 	vol /= uint64(len(info.ChannelVolumes))
 
+	percent := math.Round(float64(vol)/float64(int32(proto.VolumeNorm))*100) / 100
 	sourceValue := &eventv1.AudioSourceChangeValue{
 		Id:         info.SourceName,
 		Name:       info.Device,
 		Volume:     int32(vol),
-		Percent:    math.Round(float64(vol)/float64(proto.VolumeNorm)*100) / 100,
+		Percent:    percent,
 		PercentMax: exceedVolumeFactor,
 		Mute:       info.Mute,
 	}
@@ -333,13 +335,12 @@ func (c *Client) pollSource(idx uint32, name string) error {
 		return nil
 	}
 
-	fraction := math.Round(float64(vol)/float64(int32(proto.VolumeNorm))*100) / 100
 	icon := `audio-input-microphone-muted`
 	if !info.Mute {
 		switch {
-		case fraction >= 1:
+		case percent >= 1:
 			icon = `audio-input-microphone-high`
-		case fraction >= 0.5:
+		case percent >= 0.5:
 			icon = `audio-input-microphone-medium`
 		case vol > 0:
 			icon = `audio-input-microphone-low`
@@ -354,7 +355,7 @@ func (c *Client) pollSource(idx uint32, name string) error {
 		IconSymbolic: true,
 		Title:        info.Device,
 		Body:         info.ActivePortName,
-		Percent:      fraction,
+		Percent:      percent,
 		PercentMax:   exceedVolumeFactor,
 	}
 
@@ -377,25 +378,37 @@ func (c *Client) init() error {
 		case *proto.SubscribeEvent:
 			c.log.Trace(`Pulse subscribe event received`, `index`, evt.Index, `type`, evt.Event.GetType(), `facility`, evt.Event.GetFacility())
 			switch {
-			case evt.Event.GetType() == proto.EventNew && evt.Event.GetFacility() == proto.EventSink:
-			case evt.Event.GetType() == proto.EventChange && evt.Event.GetFacility() == proto.EventSink:
+			case evt.Event.GetFacility() == proto.EventSink && (evt.Event.GetType() == proto.EventNew || evt.Event.GetType() == proto.EventChange):
 				select {
 				case <-c.quitCh:
 					return
 				case c.sinkCh <- evt.Index:
 				}
-			case evt.Event.GetType() == proto.EventRemove && evt.Event.GetFacility() == proto.EventSink:
-			case evt.Event.GetType() == proto.EventNew && evt.Event.GetFacility() == proto.EventSource:
-			case evt.Event.GetType() == proto.EventChange && evt.Event.GetFacility() == proto.EventSource:
+			case evt.Event.GetFacility() == proto.EventSink && evt.Event.GetType() == proto.EventRemove:
+				// Check for new default device after remove, delay to allow default to settle
+				time.AfterFunc(1*time.Second, func() {
+					c.log.Debug(`Pulse sink removed`, `index`, evt.Index)
+					if err := c.pollSink(proto.Undefined, eventv1.AudioDefaultSink); err != nil {
+						c.log.Error(`Failed retrieving default Pulse sink after remove`, `err`, err)
+					}
+				})
+			case evt.Event.GetFacility() == proto.EventSource && (evt.Event.GetType() == proto.EventNew || evt.Event.GetType() == proto.EventChange):
 				select {
 				case <-c.quitCh:
 					return
 				case c.sourceCh <- evt.Index:
 				}
-			case evt.Event.GetType() == proto.EventRemove && evt.Event.GetFacility() == proto.EventSource:
-			case evt.Event.GetType() == proto.EventNew && evt.Event.GetFacility() == proto.EventCard:
-			case evt.Event.GetType() == proto.EventChange && evt.Event.GetFacility() == proto.EventCard:
-			case evt.Event.GetType() == proto.EventRemove && evt.Event.GetFacility() == proto.EventCard:
+			case evt.Event.GetFacility() == proto.EventSource && evt.Event.GetType() == proto.EventRemove:
+				c.log.Debug(`Pulse source removed`, `index`, evt.Index)
+				// Check for new default device after remove, delay to allow default to settle
+				time.AfterFunc(1*time.Second, func() {
+					if err := c.pollSource(proto.Undefined, eventv1.AudioDefaultSource); err != nil {
+						c.log.Error(`Failed retrieving default Pulse source after remove`, `err`, err)
+					}
+				})
+			case evt.Event.GetFacility() == proto.EventCard && evt.Event.GetType() == proto.EventNew:
+			case evt.Event.GetFacility() == proto.EventCard && evt.Event.GetType() == proto.EventChange:
+			case evt.Event.GetFacility() == proto.EventCard && evt.Event.GetType() == proto.EventRemove:
 			}
 		default:
 			c.log.Trace(`Pulse unknown event received`, `evt`, evt)

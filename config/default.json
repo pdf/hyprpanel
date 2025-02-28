@@ -137,7 +137,8 @@
 					"audio": {
 						"icon_size": 32,
 						"icon_symbolic": true,
-						"command_mixer": "pavucontrol"
+						"command_mixer": "pavucontrol",
+						"enable_source": true
 					}
 				},
 				{

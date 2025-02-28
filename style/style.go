@@ -56,6 +56,10 @@ const (
 	ActiveClass = `active`
 	// HoverClass class name.
 	HoverClass = `hover`
+	// OverlayClass class name.
+	OverlayClass = `overlay`
+	// OverlayClass class name.
+	DisabledClass = `disabled`
 	// IndicatorClass class name.
 	IndicatorClass = `indicator`
 	// NotificationItemClass class name.

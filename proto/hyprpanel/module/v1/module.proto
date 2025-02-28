@@ -82,6 +82,7 @@ message Audio {
   uint32 icon_size = 1; // size in pixels for panel icon.
   bool icon_symbolic = 2; // display symbolic or coloured icon in panel.
   string command_mixer = 3; // command to execute on mixer button.
+  bool enable_source = 4; // display source (mic) icon in panel.
 }
 
 message Power {

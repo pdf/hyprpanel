@@ -1,6 +1,8 @@
 module github.com/pdf/hyprpanel
 
-go 1.23.0
+go 1.24
+
+toolchain go1.24.0
 
 require (
 	github.com/fsnotify/fsnotify v1.8.0
@@ -25,7 +27,6 @@ require (
 	github.com/hashicorp/yamux v0.1.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect

@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/jwijenbergh/puregotk/v4/gdk"
@@ -13,8 +15,13 @@ import (
 	"github.com/jwijenbergh/puregotk/v4/glib"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"github.com/pdf/hyprpanel/internal/hypripc"
+	"github.com/pdf/hyprpanel/internal/panelplugin"
 	eventv1 "github.com/pdf/hyprpanel/proto/hyprpanel/event/v1"
+	hyprpanelv1 "github.com/pdf/hyprpanel/proto/hyprpanel/v1"
+	"github.com/pdf/hyprpanel/style"
 )
+
+const tooltipDebounceTime = 500 * time.Millisecond
 
 type refTracker struct {
 	mu   sync.Mutex
@@ -40,48 +47,6 @@ func newRefTracker() *refTracker {
 		refs: make([]func(), 0),
 	}
 }
-
-/*
-type callbackStore[T any] struct {
-	mu   sync.RWMutex
-	ptrs map[uintptr]*T
-}
-
-func (c *callbackStore[T]) Save(v T) uintptr {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	val := &v
-	ptr := uintptr(unsafe.Pointer(val))
-	c.ptrs[ptr] = val
-
-	return ptr
-}
-
-func (c *callbackStore[T]) Restore(ptr uintptr) (*T, error) {
-	if ptr == 0 {
-		return nil, errors.New(`nil pointer in callback restore`)
-	}
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	v, ok := c.ptrs[ptr]
-	if !ok {
-		return nil, errors.New(`invalid pointer in callback restore`)
-	}
-
-	return v, nil
-}
-
-func (c *callbackStore[T]) Unref(ptr uintptr) {
-	if ptr == 0 {
-		return
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	delete(c.ptrs, ptr)
-}
-
-var cbString = &callbackStore[string]{ptrs: make(map[uintptr]*string)}
-*/
 
 func gdkMonitorFromHypr(monitor *hypripc.Monitor) (*gdk.Monitor, error) {
 	disp := gdk.DisplayGetDefault()
@@ -124,8 +89,7 @@ func pixbufFromSNIData(buf *eventv1.StatusNotifierValue_Pixmap, size int) (*gdkp
 }
 
 func pixbufFromNotificationData(buf *eventv1.NotificationValue_Pixmap, size int) (*gdkpixbuf.Pixbuf, error) {
-	if len(buf.Data) == 0 ||
-		int32(len(buf.Data)) != buf.Channels*buf.Width*buf.Height {
+	if len(buf.Data) == 0 || int32(len(buf.Data)) != buf.Channels*buf.Width*buf.Height {
 		return nil, errInvalidPixbufArray
 	}
 
@@ -141,9 +105,25 @@ func pixbufFromNotificationData(buf *eventv1.NotificationValue_Pixmap, size int)
 	return scaled, nil
 }
 
+func pixbufFromNRGBA(buf *hyprpanelv1.ImageNRGBA) (*gdkpixbuf.Pixbuf, error) {
+	if len(buf.Pixels) == 0 {
+		return nil, errInvalidPixbufArray
+	}
+
+	pixbuf := gdkpixbuf.NewPixbufFromBytes(glib.NewBytes((uintptr)(unsafe.Pointer(&buf.Pixels[0])), uint(len(buf.Pixels))), gdkpixbuf.GdkColorspaceRgbValue, true, 8, int(buf.Width), int(buf.Height), int(buf.Stride))
+	if pixbuf == nil {
+		return nil, errInvalidPixbufArray
+	}
+
+	return pixbuf, nil
+}
+
 func pixbufScale(pixbuf *gdkpixbuf.Pixbuf, size int) (*gdkpixbuf.Pixbuf, error) {
 	width := pixbuf.GetWidth()
 	height := pixbuf.GetHeight()
+	if (width == size && height <= size) || (height == size && width <= size) {
+		return pixbuf, nil
+	}
 	if (width > size || height > size) ||
 		(width < size && height < size) {
 		targetWidth, targetHeight := size, size
@@ -213,5 +193,71 @@ func createIcon(icon string, size int, symbolic bool, fallbacks []string, search
 func unrefCallback(fnPtr any) {
 	if err := glib.UnrefCallback(fnPtr); err != nil {
 		log.Warn(`UnrefCallback failed`, `err`, err)
+	}
+}
+
+type tooltipPreviewer interface {
+	clientAddress() string
+	clientTitle() string
+	shouldPreview() bool
+	host() panelplugin.Host
+}
+
+func tooltipPreview(target tooltipPreviewer, width, height int) func(widget gtk.Widget, x int, y int, keyboardMod bool, tooltipPtr uintptr) bool {
+	var lastTooltipTime time.Time
+	var lastTooltip *gtk.Widget
+
+	return func(widget gtk.Widget, x int, y int, keyboardMod bool, tooltipPtr uintptr) bool {
+		tooltip := gtk.TooltipNewFromInternalPtr(tooltipPtr)
+
+		// Debounce tooltip rendering to avoid excessive updates
+		if !lastTooltipTime.IsZero() && time.Since(lastTooltipTime) < tooltipDebounceTime && lastTooltip != nil {
+			tooltip.SetCustom(lastTooltip)
+			return true
+		}
+		lastTooltipTime = time.Now()
+		time.AfterFunc(tooltipDebounceTime, func() {
+			if lastTooltip == nil {
+				return
+			}
+			lastTooltip.Unref()
+			lastTooltip = nil
+		})
+
+		container := gtk.NewBox(gtk.OrientationVerticalValue, 0)
+		tooltip.SetCustom(&container.Widget)
+		lastTooltip = &container.Widget
+
+		title := gtk.NewLabel(target.clientTitle())
+		container.Append(&title.Widget)
+		title.Unref()
+
+		if !target.shouldPreview() {
+			return true
+		}
+
+		addr, err := strconv.ParseUint(target.clientAddress(), 0, 64)
+		if err != nil {
+			log.Warn(`failed to parse client address`, `err`, err)
+			return true
+		}
+		img, err := target.host().CaptureFrame(addr, int32(width), int32(height))
+		if err != nil {
+			log.Warn(`failed to capture frame`, `err`, err)
+			return true
+		}
+
+		pixbuf, err := pixbufFromNRGBA(img)
+		if err != nil {
+			log.Warn(`failed to create pixbuf from ImageNRGBA`, `err`, err)
+			return true
+		}
+		image := gtk.NewPictureForPixbuf(pixbuf)
+		image.AddCssClass(style.TooltipImageClass)
+		image.SetSizeRequest(width, height)
+		container.Append(&image.Widget)
+		image.Unref()
+
+		return true
 	}
 }

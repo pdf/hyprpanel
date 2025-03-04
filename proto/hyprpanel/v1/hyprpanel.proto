@@ -25,6 +25,13 @@ enum NotificationClosedReason {
   NOTIFICATION_CLOSED_REASON_SIGNAL = 3;
 }
 
+message ImageNRGBA {
+  bytes pixels = 1;
+  uint32 stride = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+}
+
 message AppInfo {
   message Action {
     string name = 1;
@@ -168,6 +175,16 @@ message HostServiceBrightnessAdjustRequest {
 }
 message HostServiceBrightnessAdjustResponse {}
 
+message HostServiceCaptureFrameRequest {
+  uint64 address = 1;
+  int32 width = 2;
+  int32 height = 3;
+}
+
+message HostServiceCaptureFrameResponse {
+  ImageNRGBA image = 1;
+}
+
 service HostService {
   rpc Exec(HostServiceExecRequest) returns (HostServiceExecResponse);
   rpc FindApplication(HostServiceFindApplicationRequest) returns (HostServiceFindApplicationResponse);
@@ -184,4 +201,5 @@ service HostService {
   rpc AudioSourceVolumeAdjust(HostServiceAudioSourceVolumeAdjustRequest) returns (HostServiceAudioSourceVolumeAdjustResponse);
   rpc AudioSourceMuteToggle(HostServiceAudioSourceMuteToggleRequest) returns (HostServiceAudioSourceMuteToggleResponse);
   rpc BrightnessAdjust(HostServiceBrightnessAdjustRequest) returns (HostServiceBrightnessAdjustResponse);
+  rpc CaptureFrame(HostServiceCaptureFrameRequest) returns (HostServiceCaptureFrameResponse);
 }

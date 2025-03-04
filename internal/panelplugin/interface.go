@@ -48,6 +48,7 @@ type Host interface {
 	AudioSourceVolumeAdjust(id string, direction eventv1.Direction) error
 	AudioSourceMuteToggle(id string) error
 	BrightnessAdjust(devName string, direction eventv1.Direction) error
+	CaptureFrame(address uint64, width, height int32) (*hyprpanelv1.ImageNRGBA, error)
 }
 
 // Panel interface.

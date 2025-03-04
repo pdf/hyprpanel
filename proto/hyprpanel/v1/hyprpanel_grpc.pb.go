@@ -198,6 +198,7 @@ const (
 	HostService_AudioSourceVolumeAdjust_FullMethodName    = "/hyprpanel.v1.HostService/AudioSourceVolumeAdjust"
 	HostService_AudioSourceMuteToggle_FullMethodName      = "/hyprpanel.v1.HostService/AudioSourceMuteToggle"
 	HostService_BrightnessAdjust_FullMethodName           = "/hyprpanel.v1.HostService/BrightnessAdjust"
+	HostService_CaptureFrame_FullMethodName               = "/hyprpanel.v1.HostService/CaptureFrame"
 )
 
 // HostServiceClient is the client API for HostService service.
@@ -219,6 +220,7 @@ type HostServiceClient interface {
 	AudioSourceVolumeAdjust(ctx context.Context, in *HostServiceAudioSourceVolumeAdjustRequest, opts ...grpc.CallOption) (*HostServiceAudioSourceVolumeAdjustResponse, error)
 	AudioSourceMuteToggle(ctx context.Context, in *HostServiceAudioSourceMuteToggleRequest, opts ...grpc.CallOption) (*HostServiceAudioSourceMuteToggleResponse, error)
 	BrightnessAdjust(ctx context.Context, in *HostServiceBrightnessAdjustRequest, opts ...grpc.CallOption) (*HostServiceBrightnessAdjustResponse, error)
+	CaptureFrame(ctx context.Context, in *HostServiceCaptureFrameRequest, opts ...grpc.CallOption) (*HostServiceCaptureFrameResponse, error)
 }
 
 type hostServiceClient struct {
@@ -364,6 +366,15 @@ func (c *hostServiceClient) BrightnessAdjust(ctx context.Context, in *HostServic
 	return out, nil
 }
 
+func (c *hostServiceClient) CaptureFrame(ctx context.Context, in *HostServiceCaptureFrameRequest, opts ...grpc.CallOption) (*HostServiceCaptureFrameResponse, error) {
+	out := new(HostServiceCaptureFrameResponse)
+	err := c.cc.Invoke(ctx, HostService_CaptureFrame_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HostServiceServer is the server API for HostService service.
 // All implementations must embed UnimplementedHostServiceServer
 // for forward compatibility
@@ -383,6 +394,7 @@ type HostServiceServer interface {
 	AudioSourceVolumeAdjust(context.Context, *HostServiceAudioSourceVolumeAdjustRequest) (*HostServiceAudioSourceVolumeAdjustResponse, error)
 	AudioSourceMuteToggle(context.Context, *HostServiceAudioSourceMuteToggleRequest) (*HostServiceAudioSourceMuteToggleResponse, error)
 	BrightnessAdjust(context.Context, *HostServiceBrightnessAdjustRequest) (*HostServiceBrightnessAdjustResponse, error)
+	CaptureFrame(context.Context, *HostServiceCaptureFrameRequest) (*HostServiceCaptureFrameResponse, error)
 	mustEmbedUnimplementedHostServiceServer()
 }
 
@@ -434,6 +446,9 @@ func (UnimplementedHostServiceServer) AudioSourceMuteToggle(context.Context, *Ho
 }
 func (UnimplementedHostServiceServer) BrightnessAdjust(context.Context, *HostServiceBrightnessAdjustRequest) (*HostServiceBrightnessAdjustResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BrightnessAdjust not implemented")
+}
+func (UnimplementedHostServiceServer) CaptureFrame(context.Context, *HostServiceCaptureFrameRequest) (*HostServiceCaptureFrameResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CaptureFrame not implemented")
 }
 func (UnimplementedHostServiceServer) mustEmbedUnimplementedHostServiceServer() {}
 
@@ -718,6 +733,24 @@ func _HostService_BrightnessAdjust_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HostService_CaptureFrame_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HostServiceCaptureFrameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HostServiceServer).CaptureFrame(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HostService_CaptureFrame_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HostServiceServer).CaptureFrame(ctx, req.(*HostServiceCaptureFrameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // HostService_ServiceDesc is the grpc.ServiceDesc for HostService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -784,6 +817,10 @@ var HostService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BrightnessAdjust",
 			Handler:    _HostService_BrightnessAdjust_Handler,
+		},
+		{
+			MethodName: "CaptureFrame",
+			Handler:    _HostService_CaptureFrame_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

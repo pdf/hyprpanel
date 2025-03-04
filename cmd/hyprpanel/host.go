@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/pdf/hyprpanel/internal/applications"
@@ -19,6 +19,7 @@ import (
 	configv1 "github.com/pdf/hyprpanel/proto/hyprpanel/config/v1"
 	eventv1 "github.com/pdf/hyprpanel/proto/hyprpanel/event/v1"
 	hyprpanelv1 "github.com/pdf/hyprpanel/proto/hyprpanel/v1"
+	"github.com/pdf/hyprpanel/wl"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -29,8 +30,8 @@ const (
 )
 
 var (
-	errReload   = errors.New(`reloading`)
-	errDisabled = errors.New(`feature disabled`)
+	errReload   = fmt.Errorf(`reloading`)
+	errDisabled = fmt.Errorf(`feature disabled`)
 )
 
 type host struct {
@@ -38,6 +39,7 @@ type host struct {
 	stylesheet  []byte
 	log         hclog.Logger
 	pluginLog   hclog.Logger
+	wl          *wl.App
 	hypr        *hypripc.HyprIPC
 	hyprEvtCh   <-chan *eventv1.Event
 	dbus        *dbus.Client
@@ -53,7 +55,7 @@ type host struct {
 
 func (h *host) Exec(command string) error {
 	if command == `` {
-		return errors.New(`empty command`)
+		return fmt.Errorf(`empty command`)
 	}
 	var (
 		c    string
@@ -177,6 +179,30 @@ func (h *host) BrightnessAdjust(devName string, direction eventv1.Direction) err
 	}
 
 	return h.dbus.Brightness().Adjust(devName, direction)
+}
+
+func (h *host) CaptureFrame(address uint64, width, height int32) (*hyprpanelv1.ImageNRGBA, error) {
+	if h.wl == nil {
+		return nil, fmt.Errorf(`wl app not available`)
+	}
+
+	if address == 0 || width == 0 || height == 0 {
+		return nil, fmt.Errorf("invalid parameters: address=%d, width=%d, height=%d", address, width, height)
+	}
+
+	img, err := h.wl.CaptureFrame(address)
+	if err != nil {
+		return nil, err
+	}
+
+	dst := imaging.Fit(img, int(width), int(height), imaging.Box)
+
+	return &hyprpanelv1.ImageNRGBA{
+		Pixels: dst.Pix,
+		Stride: uint32(dst.Stride),
+		Width:  uint32(dst.Bounds().Dx()),
+		Height: uint32(dst.Bounds().Dy()),
+	}, nil
 }
 
 func (h *host) runPanel(clientPath string, layerShellPath string, prevPreload string, id string, cfg *configv1.Panel) (panelplugin.Panel, *plugin.Client, error) {
@@ -355,8 +381,17 @@ func (h *host) watch() {
 
 func (h *host) run() error {
 	if len(h.cfg.Panels) == 0 {
-		return errors.New(`no panels configured`)
+		return fmt.Errorf(`no panels configured`)
 	}
+
+	hyprCancel, err := h.connectHypr()
+	if err != nil {
+		return fmt.Errorf("hypr connection failed: %w", err)
+	}
+	defer func() {
+		hyprCancel()
+		h.hypr.Close()
+	}()
 
 	h.log.SetLevel(hclog.Level(h.cfg.LogLevel))
 	h.pluginLog.SetLevel(hclog.Level(h.cfg.LogLevel))
@@ -386,15 +421,6 @@ func (h *host) run() error {
 	if h.audio != nil {
 		defer h.audio.Close()
 	}
-
-	hyprCancel, err := h.connectHypr()
-	if err != nil {
-		return fmt.Errorf("hypr connection failed: %w", err)
-	}
-	defer func() {
-		hyprCancel()
-		h.hypr.Close()
-	}()
 
 	prevPreload := os.Getenv(`LD_PRELOAD`)
 	h.panels = make([]panelplugin.Panel, len(h.cfg.Panels))
@@ -433,6 +459,9 @@ func (h *host) run() error {
 			return fmt.Errorf("panel failed (%w): %w", grp.Wait(), errCtx.Err())
 		}
 	case <-h.quitCh:
+		if err := h.wl.Close(); err != nil {
+			h.log.Error(`Failed to close wl app`, `err`, err)
+		}
 		return nil
 	}
 }
@@ -478,17 +507,23 @@ func (h *host) connectAudio() error {
 }
 
 func newHost(cfg *configv1.Config, stylesheet []byte, log hclog.Logger) (*host, error) {
+	var err error
+	wlApp, err := wl.NewApp(log)
+	if err != nil {
+		return nil, err
+	}
+
 	h := &host{
 		cfg:         cfg,
 		stylesheet:  stylesheet,
 		log:         log,
 		pluginLog:   log.Named(`plugin`),
+		wl:          wlApp,
 		reloadCh:    make(chan struct{}),
 		stopWatchCh: make(chan struct{}),
 		quitCh:      make(chan struct{}),
 	}
 
-	var err error
 	h.apps, err = applications.New(log)
 	if err != nil {
 		return nil, err

@@ -354,6 +354,10 @@ func (t *taskbar) watch() {
 }
 
 func newTaskbar2(panel *panel, cfg *modulev1.Taskbar) *taskbar {
+	if cfg.PreviewWidth == 0 {
+		cfg.PreviewWidth = 256
+	}
+
 	t := &taskbar{
 		refTracker:  newRefTracker(),
 		panel:       panel,

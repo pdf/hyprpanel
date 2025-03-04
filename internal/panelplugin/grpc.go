@@ -250,6 +250,19 @@ func (c *HostGRPCClient) BrightnessAdjust(devName string, direction eventv1.Dire
 	return err
 }
 
+// CaptureFrame implementation.
+func (c *HostGRPCClient) CaptureFrame(address uint64, width, height int32) (*hyprpanelv1.ImageNRGBA, error) {
+	response, err := c.client.CaptureFrame(context.Background(), &hyprpanelv1.HostServiceCaptureFrameRequest{
+		Address: address,
+		Width:   width,
+		Height:  height,
+	})
+	if err != nil {
+		return &hyprpanelv1.ImageNRGBA{}, err
+	}
+	return response.Image, nil
+}
+
 // HostGRPCServer plugin host implementation.
 type HostGRPCServer struct {
 	hyprpanelv1.UnimplementedHostServiceServer
@@ -407,4 +420,16 @@ func (s *HostGRPCServer) BrightnessAdjust(_ context.Context, req *hyprpanelv1.Ho
 	}
 
 	return &hyprpanelv1.HostServiceBrightnessAdjustResponse{}, nil
+}
+
+// CaptureFrame implementation.
+func (s *HostGRPCServer) CaptureFrame(_ context.Context, req *hyprpanelv1.HostServiceCaptureFrameRequest) (*hyprpanelv1.HostServiceCaptureFrameResponse, error) {
+	img, err := s.Impl.CaptureFrame(req.Address, req.Width, req.Height)
+	if err != nil {
+		return &hyprpanelv1.HostServiceCaptureFrameResponse{}, err
+	}
+
+	return &hyprpanelv1.HostServiceCaptureFrameResponse{
+		Image: img,
+	}, nil
 }

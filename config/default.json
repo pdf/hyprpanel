@@ -58,7 +58,8 @@
 							5,
 							6
 						],
-						"ignore_windows": []
+						"ignore_windows": [],
+						"preview_width": 256
 					}
 				},
 				{
@@ -76,7 +77,8 @@
 						"hide_indicators": false,
 						"expand": true,
 						"max_size": 0,
-						"pinned": []
+						"pinned": [],
+						"preview_width": 256
 					}
 				},
 				{

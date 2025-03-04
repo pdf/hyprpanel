@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"github.com/pdf/hyprpanel/internal/hypripc"
+	"github.com/pdf/hyprpanel/internal/panelplugin"
 	hyprpanelv1 "github.com/pdf/hyprpanel/proto/hyprpanel/v1"
 	"github.com/pdf/hyprpanel/style"
 )
@@ -64,7 +65,6 @@ func (c *pagerClient) update(container *gtk.Fixed, posX, posY float64, width, he
 
 	if c.title != c.client.Title {
 		c.title = c.client.Title
-		c.container.SetTooltipText(c.client.Title)
 	}
 
 	if c.width != width || c.height != height {
@@ -81,6 +81,22 @@ func (c *pagerClient) update(container *gtk.Fixed, posX, posY float64, width, he
 	}
 }
 
+func (c *pagerClient) host() panelplugin.Host {
+	return c.ws.pager.panel.host
+}
+
+func (c *pagerClient) clientTitle() string {
+	return c.title
+}
+
+func (c *pagerClient) clientAddress() string {
+	return c.client.Address
+}
+
+func (c *pagerClient) shouldPreview() bool {
+	return c.client != nil
+}
+
 func (c *pagerClient) build(container *gtk.Fixed) {
 	c.container = gtk.NewCenterBox()
 	c.AddRef(c.container.Unref)
@@ -90,6 +106,12 @@ func (c *pagerClient) build(container *gtk.Fixed) {
 	c.container.SetMarginEnd(1)
 	c.container.SetMarginTop(1)
 	c.container.SetMarginBottom(1)
+	c.container.SetHasTooltip(true)
+
+	previewHeight := int(c.ws.pager.cfg.PreviewWidth * 9 / 16)
+	tooltipCb := tooltipPreview(c, int(c.ws.pager.cfg.PreviewWidth), previewHeight)
+	c.AddRef(func() { unrefCallback(&tooltipCb) })
+	c.container.ConnectQueryTooltip(&tooltipCb)
 
 	c.updateIcon()
 	c.update(container, c.posX, c.posY, c.width, c.height, c.client)

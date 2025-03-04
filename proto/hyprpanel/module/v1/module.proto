@@ -25,6 +25,7 @@ message Pager {
   bool enable_workspace_names = 5; // display workspace name labels.
   repeated int32 pinned = 6; // list of workspace IDs that will always be included in the pager, regardless of activation state.
   repeated string ignore_windows = 7; // list of window classes that will be excluded from preview on the pager.
+  uint32 preview_width = 8; // width in pixels for task preview windows.
 }
 
 message Taskbar {
@@ -36,6 +37,7 @@ message Taskbar {
   bool expand = 6; // expand this module to fill available space in the panel.
   uint32 max_size = 7; // maximum size in pixels for this module. Zero means no limit.
   repeated string pinned = 8; // list of window classes that should always be displayed on the taskbar. Allows the taskbar to act as a launcher.
+  uint32 preview_width = 9; // width in pixels for task preview windows.
 }
 
 message Systray {

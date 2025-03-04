@@ -12,6 +12,7 @@ import (
 	"github.com/jwijenbergh/puregotk/v4/glib"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"github.com/pdf/hyprpanel/internal/hypripc"
+	"github.com/pdf/hyprpanel/internal/panelplugin"
 	configv1 "github.com/pdf/hyprpanel/proto/hyprpanel/config/v1"
 	hyprpanelv1 "github.com/pdf/hyprpanel/proto/hyprpanel/v1"
 	"github.com/pdf/hyprpanel/style"
@@ -416,7 +417,6 @@ func (i *taskbarItem) updateClient(client *hypripc.Client, active bool) error {
 		tooltip = i.appInfo.Name
 	}
 	if i.title != tooltip {
-		i.container.SetTooltipText(tooltip)
 		i.title = tooltip
 		updated = true
 	}
@@ -461,6 +461,29 @@ func (i *taskbarItem) deleteClient(addr string, container *gtk.Box) error {
 	}
 
 	return errNotEmpty
+}
+
+func (i *taskbarItem) clientTitle() string {
+	if i.activeClient == `` {
+		return i.appInfo.Name
+	}
+	if c, ok := i.clients[i.activeClient]; ok {
+		return c.Title
+	}
+
+	return i.appInfo.Name
+}
+
+func (i *taskbarItem) clientAddress() string {
+	return i.activeClient
+}
+
+func (i *taskbarItem) shouldPreview() bool {
+	return i.activeClient != ``
+}
+
+func (i *taskbarItem) host() panelplugin.Host {
+	return i.bar.panel.host
 }
 
 func (i *taskbarItem) build(container *gtk.Box) error {
@@ -619,6 +642,12 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 		scrollController.ConnectScroll(&scrollCb)
 		i.wrapper.AddController(&scrollController.EventController)
 	}
+
+	i.container.SetHasTooltip(true)
+	previewHeight := int(i.bar.cfg.PreviewWidth * 9 / 16)
+	tooltipCb := tooltipPreview(i, int(i.bar.cfg.PreviewWidth), previewHeight)
+	i.AddRef(func() { unrefCallback(&tooltipCb) })
+	i.container.ConnectQueryTooltip(&tooltipCb)
 
 	i.updateScale(i.scale)
 

@@ -22,17 +22,21 @@ type sortedWorkspaces struct {
 func (s sortedWorkspaces) Len() int {
 	return len(s.workspaces)
 }
+
 func (s sortedWorkspaces) Swap(i, j int) {
 	s.workspaces[i], s.workspaces[j] = s.workspaces[j], s.workspaces[i]
 	s.workspaceIdx[s.workspaces[i].id] = i
 	s.workspaceIdx[s.workspaces[j].id] = j
 }
+
 func (s sortedWorkspaces) Less(i, j int) bool {
 	return s.workspaces[i].id < s.workspaces[j].id
 }
+
 func (s sortedWorkspaces) getIdx(id int) int {
 	return s.workspaceIdx[id]
 }
+
 func (s sortedWorkspaces) getWorkspace(idx int) *pagerWorkspace {
 	return s.workspaces[idx]
 }
@@ -237,7 +241,7 @@ func (p *pager) build(container *gtk.Box) error {
 					}
 
 					// We can't use the name here because Hyprland will allocate random IDs to inactive workspaces
-					//target = ws.name
+					// target = ws.name
 					target = strconv.Itoa(ws.id)
 					break
 				}
@@ -257,7 +261,7 @@ func (p *pager) build(container *gtk.Box) error {
 				}
 
 				// We can't use the name here because Hyprland will allocate random IDs to inactive workspaces
-				//target = ws.name
+				// target = ws.name
 				target = strconv.Itoa(ws.id)
 				break
 			}
@@ -401,6 +405,9 @@ func (p *pager) watch() {
 }
 
 func newPager(panel *panel, cfg *modulev1.Pager) *pager {
+	if cfg.PreviewWidth == 0 {
+		cfg.PreviewWidth = 256
+	}
 	p := &pager{
 		refTracker:       newRefTracker(),
 		panel:            panel,

@@ -84,6 +84,8 @@ const (
 	HudPercentClass = `hudPercent`
 	// HudGaugeClass class name.
 	HudGaugeClass = `hudGauge`
+	// TooltipImageClass class name.
+	TooltipImageClass = `tooltipImage`
 
 	// TopClass class name.
 	TopClass = `top`

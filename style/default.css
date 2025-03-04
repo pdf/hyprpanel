@@ -207,3 +207,8 @@ flowboxchild {
 	margin: 0px 12px 16px 12px;
 	font-size: 2rem;
 }
+
+.tooltipImage {
+	margin: 8px;
+	padding: 0;
+}

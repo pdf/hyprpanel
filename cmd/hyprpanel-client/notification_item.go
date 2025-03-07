@@ -67,7 +67,7 @@ func (i *notificationItem) build(container *gtk.Box) error {
 		close(i.closed)
 		var cb glib.SourceFunc
 		cb = func(uintptr) bool {
-			defer unrefCallback(cb)
+			defer unrefCallback(&cb)
 			i.n.deleteNotification(i.data.Id)
 			return false
 		}

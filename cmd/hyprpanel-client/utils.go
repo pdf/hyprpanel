@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/jwijenbergh/puregotk/v4/gdk"
 	"github.com/jwijenbergh/puregotk/v4/gdkpixbuf"
@@ -79,7 +78,7 @@ func pixbufFromSNIData(buf *eventv1.StatusNotifierValue_Pixmap, size int) (*gdkp
 		buf.Data[i+3] = alpha
 	}
 
-	pixbuf := gdkpixbuf.NewPixbufFromBytes(glib.NewBytes((uintptr)(unsafe.Pointer(&buf.Data[0])), uint(len(buf.Data))), gdkpixbuf.GdkColorspaceRgbValue, true, 8, int(buf.Width), int(buf.Height), int(buf.Width)*4)
+	pixbuf := gdkpixbuf.NewPixbufFromBytes(glib.NewBytes(buf.Data, uint(len(buf.Data))), gdkpixbuf.GdkColorspaceRgbValue, true, 8, int(buf.Width), int(buf.Height), int(buf.Width)*4)
 	scaled, err := pixbufScale(pixbuf, size)
 	if err != nil {
 		return nil, err
@@ -93,7 +92,7 @@ func pixbufFromNotificationData(buf *eventv1.NotificationValue_Pixmap, size int)
 		return nil, errInvalidPixbufArray
 	}
 
-	pixbuf := gdkpixbuf.NewPixbufFromBytes(glib.NewBytes((uintptr)(unsafe.Pointer(&buf.Data[0])), uint(len(buf.Data))), gdkpixbuf.GdkColorspaceRgbValue, buf.HasAlpha, int(buf.BitsPerSample), int(buf.Width), int(buf.Height), int(buf.RowStride))
+	pixbuf := gdkpixbuf.NewPixbufFromBytes(glib.NewBytes(buf.Data, uint(len(buf.Data))), gdkpixbuf.GdkColorspaceRgbValue, buf.HasAlpha, int(buf.BitsPerSample), int(buf.Width), int(buf.Height), int(buf.RowStride))
 	if pixbuf == nil {
 		return nil, errInvalidPixbufArray
 	}
@@ -110,7 +109,7 @@ func pixbufFromNRGBA(buf *hyprpanelv1.ImageNRGBA) (*gdkpixbuf.Pixbuf, error) {
 		return nil, errInvalidPixbufArray
 	}
 
-	pixbuf := gdkpixbuf.NewPixbufFromBytes(glib.NewBytes((uintptr)(unsafe.Pointer(&buf.Pixels[0])), uint(len(buf.Pixels))), gdkpixbuf.GdkColorspaceRgbValue, true, 8, int(buf.Width), int(buf.Height), int(buf.Stride))
+	pixbuf := gdkpixbuf.NewPixbufFromBytes(glib.NewBytes(buf.Pixels, uint(len(buf.Pixels))), gdkpixbuf.GdkColorspaceRgbValue, true, 8, int(buf.Width), int(buf.Height), int(buf.Stride))
 	if pixbuf == nil {
 		return nil, errInvalidPixbufArray
 	}

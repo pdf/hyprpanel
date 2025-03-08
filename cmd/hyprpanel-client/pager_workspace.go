@@ -1,10 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"strconv"
+	"unsafe"
 
 	"github.com/jwijenbergh/puregotk/v4/gdk"
+	"github.com/jwijenbergh/puregotk/v4/gobject"
+	"github.com/jwijenbergh/puregotk/v4/gobject/types"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"github.com/jwijenbergh/puregotk/v4/pango"
 	"github.com/pdf/hyprpanel/internal/hypripc"
@@ -145,6 +149,46 @@ func (w *pagerWorkspace) build(container *gtk.Box) error {
 	clickController := gtk.NewGestureClick()
 	clickController.ConnectReleased(&clickCb)
 	w.container.AddController(&clickController.EventController)
+
+	dropTarget := gtk.NewDropTarget(gobject.TypeStringVal, gdk.ActionCopyValue)
+	dropTarget.SetGtypes([]types.GType{gobject.TypeStringVal}, 1)
+	w.AddRef(dropTarget.Unref)
+
+	dropEnterCb := func(_ gtk.DropTarget, _, _ float64) gdk.DragAction {
+		return gdk.ActionCopyValue
+	}
+	w.AddRef(func() {
+		unrefCallback(&dropEnterCb)
+	})
+	dropTarget.ConnectEnter(&dropEnterCb)
+
+	dropCb := func(_ gtk.DropTarget, val uintptr, _, _ float64) bool {
+		if val == 0 {
+			return false
+		}
+		v := *(**gobject.Value)(unsafe.Pointer(&val))
+		if !gobject.TypeCheckValueHolds(v, gobject.TypeStringVal) {
+			return false
+		}
+
+		addr := v.GetString()
+		dispatch := hypripc.DispatchMoveToWorkspaceSilent
+		if w.pager.cfg.FollowWindowOnMove {
+			dispatch = hypripc.DispatchMoveToWorkspace
+		}
+		if err := w.pager.panel.hypr.Dispatch(dispatch, fmt.Sprintf("%d,address:%s", w.id, addr)); err != nil {
+			log.Debug(`Move client to workspace failed`, `module`, style.PagerID, `workspace`, w.id, `window`, addr, `err`, err)
+			return false
+		}
+
+		return true
+	}
+	w.AddRef(func() {
+		unrefCallback(&dropCb)
+	})
+	dropTarget.ConnectDrop(&dropCb)
+
+	w.container.AddController(&dropTarget.EventController)
 
 	w.inner = gtk.NewFixed()
 	w.container.Append(&w.inner.Widget)

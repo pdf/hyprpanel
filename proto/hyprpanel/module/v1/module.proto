@@ -26,6 +26,7 @@ message Pager {
   repeated int32 pinned = 6; // list of workspace IDs that will always be included in the pager, regardless of activation state.
   repeated string ignore_windows = 7; // list of window classes that will be excluded from preview on the pager.
   uint32 preview_width = 8; // width in pixels for task preview windows.
+  bool follow_window_on_move = 9; // when moving a window, switch to the workspace the window is being moved to.
 }
 
 message Taskbar {

@@ -14,7 +14,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jfreymuth/pulse v0.1.1
 	github.com/jwijenbergh/purego v0.0.0-20241210143217-aeaa0bfe09e0
-	github.com/jwijenbergh/puregotk v0.0.0-20240827133221-51f7e663a5e9
+	github.com/jwijenbergh/puregotk v0.0.0-20250407124134-bc1a52f44fd4
 	github.com/pdf/go-wayland v0.0.2
 	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
 	github.com/rkoesters/xdg v0.0.1

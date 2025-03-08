@@ -36,6 +36,7 @@
 		"volume_exceed_maximum": false,
 		"hud_notifications": true
 	},
+	"icon_overrides": [],
 	"panels": [
 		{
 			"id": "panel0",
@@ -59,7 +60,8 @@
 							6
 						],
 						"ignore_windows": [],
-						"preview_width": 256
+						"preview_width": 256,
+						"follow_window_on_move": false
 					}
 				},
 				{

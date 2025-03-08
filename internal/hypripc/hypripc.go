@@ -95,6 +95,10 @@ const (
 	DispatchFocusWindow = `focuswindow`
 	// DispatchCloseWindow dispatcher identifier.
 	DispatchCloseWindow = `closewindow`
+	// DispatchMoveToWorkspace dispatcher identifier.
+	DispatchMoveToWorkspace = `movetoworkspace`
+	// DispatchMoveToWorkspaceSilent dispatcher identifier.
+	DispatchMoveToWorkspaceSilent = `movetoworkspacesilent`
 )
 
 var eventMatch = regexp.MustCompile(`^(?P<Event>[^>]+)>>(?P<Value>.*)$`)

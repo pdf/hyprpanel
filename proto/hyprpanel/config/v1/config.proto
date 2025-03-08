@@ -31,6 +31,11 @@ message Panel {
   repeated hyprpanel.module.v1.Module modules = 5; // list of modules for this panel.
 }
 
+message IconOverride {
+  string window_class = 1; // window class of the application to match.
+  string icon = 2; // icon name to use for this application.
+}
+
 message Config {
   message DBUS {
     message Notifications {
@@ -85,4 +90,5 @@ message Config {
   DBUS dbus = 3; // dbus configuration section.
   Audio audio = 4; // audio configuration section.
   repeated Panel panels = 6; // list of panels to display.
+  repeated IconOverride icon_overrides = 7; // list of icon overrides.
 }

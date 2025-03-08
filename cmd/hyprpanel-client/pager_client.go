@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/jwijenbergh/puregotk/v4/gdk"
+	"github.com/jwijenbergh/puregotk/v4/gobject"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"github.com/pdf/hyprpanel/internal/hypripc"
 	"github.com/pdf/hyprpanel/internal/panelplugin"
@@ -112,6 +114,25 @@ func (c *pagerClient) build(container *gtk.Fixed) {
 	tooltipCb := tooltipPreview(c, int(c.ws.pager.cfg.PreviewWidth), previewHeight)
 	c.AddRef(func() { unrefCallback(&tooltipCb) })
 	c.container.ConnectQueryTooltip(&tooltipCb)
+
+	dragSource := gtk.NewDragSource()
+	dragPrepCb := func(_ gtk.DragSource, _, _ float64) gdk.ContentProvider {
+		val := gobject.Value{GType: gobject.TypeStringVal}
+		val.SetString(c.client.Address)
+		return *gdk.NewContentProviderForValue(&val)
+	}
+	c.AddRef(func() { unrefCallback(&dragPrepCb) })
+	dragSource.ConnectPrepare(&dragPrepCb)
+	dragBeginCb := func(_ gtk.DragSource, _ uintptr) {
+		preview := gtk.NewWidgetPaintable(&c.container.Widget)
+		// hotX/hotY don't work here, apparently it's meant to be fixed in GTK, maybe Hyprland bug?
+		// https://gitlab.gnome.org/GNOME/gtk/-/issues/2341
+		// https://github.com/hyprwm/Hyprland/issues/9564
+		dragSource.SetIcon(preview, preview.GetIntrinsicWidth()/2, preview.GetIntrinsicHeight()/2)
+		preview.Unref()
+	}
+	dragSource.ConnectDragBegin(&dragBeginCb)
+	c.container.AddController(&dragSource.EventController)
 
 	c.updateIcon()
 	c.update(container, c.posX, c.posY, c.width, c.height, c.client)

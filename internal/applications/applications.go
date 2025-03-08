@@ -13,6 +13,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/hashicorp/go-hclog"
+	configv1 "github.com/pdf/hyprpanel/proto/hyprpanel/config/v1"
 	hyprpanelv1 "github.com/pdf/hyprpanel/proto/hyprpanel/v1"
 	"github.com/rkoesters/xdg/desktop"
 )
@@ -22,20 +23,19 @@ const (
 	defaultIcon = `wayland`
 )
 
-var (
-	// ErrNotFound is returned when an application is not found.
-	ErrNotFound = errors.New(`application not found`)
-)
+// ErrNotFound is returned when an application is not found.
+var ErrNotFound = errors.New(`application not found`)
 
 // AppCache holds an auto-updated list of Desktop application data.
 type AppCache struct {
-	log        hclog.Logger
-	mu         sync.RWMutex
-	watcher    *fsnotify.Watcher
-	quitCh     chan struct{}
-	targets    []string
-	cache      map[string]*hyprpanelv1.AppInfo
-	cacheLower map[string]*hyprpanelv1.AppInfo
+	log           hclog.Logger
+	mu            sync.RWMutex
+	watcher       *fsnotify.Watcher
+	quitCh        chan struct{}
+	targets       []string
+	cache         map[string]*hyprpanelv1.AppInfo
+	cacheLower    map[string]*hyprpanelv1.AppInfo
+	iconOverrides map[string]string
 }
 
 // Find an application by class.
@@ -74,7 +74,6 @@ func (a *AppCache) Refresh() error {
 		}
 
 		err = filepath.WalkDir(target, a.cacheWalk)
-
 		if err != nil {
 			return err
 		}
@@ -119,20 +118,32 @@ func (a *AppCache) cacheWalk(path string, d fs.DirEntry, err error) error {
 		dotPrefixed := name[idx+1:]
 		a.cache[dotPrefixed] = app
 		a.cacheLower[strings.ToLower(dotPrefixed)] = app
+		if ico, ok := a.iconOverrides[strings.ToLower(dotPrefixed)]; ok {
+			app.Icon = ico
+		}
 	}
 	// Match app_id for mismatched .desktop and WmClass
 	if app.StartupWmClass != `` {
 		a.cache[app.StartupWmClass] = app
 		a.cacheLower[strings.ToLower(app.StartupWmClass)] = app
+		if ico, ok := a.iconOverrides[strings.ToLower(app.StartupWmClass)]; ok {
+			app.Icon = ico
+		}
 	}
 	// Last ditch, by Name for apps with missing app_id
 	if app.Name != `` {
 		a.cache[app.Name] = app
 		a.cacheLower[strings.ToLower(app.Name)] = app
+		if ico, ok := a.iconOverrides[strings.ToLower(app.Name)]; ok {
+			app.Icon = ico
+		}
 	}
 	// Standard match app_id by .desktop name
 	a.cache[name] = app
 	a.cacheLower[strings.ToLower(name)] = app
+	if ico, ok := a.iconOverrides[strings.ToLower(name)]; ok {
+		app.Icon = ico
+	}
 
 	return nil
 }
@@ -224,12 +235,17 @@ func newAppInfo(file string) (*hyprpanelv1.AppInfo, error) {
 }
 
 // New instantiate a new AppCache.
-func New(log hclog.Logger) (*AppCache, error) {
+func New(log hclog.Logger, iconOverrides []*configv1.IconOverride) (*AppCache, error) {
+	overrides := make(map[string]string, len(iconOverrides))
+	for _, v := range iconOverrides {
+		overrides[strings.ToLower(v.WindowClass)] = v.Icon
+	}
 	a := &AppCache{
-		log:        log,
-		cache:      make(map[string]*hyprpanelv1.AppInfo),
-		cacheLower: make(map[string]*hyprpanelv1.AppInfo),
-		quitCh:     make(chan struct{}),
+		log:           log,
+		cache:         make(map[string]*hyprpanelv1.AppInfo),
+		cacheLower:    make(map[string]*hyprpanelv1.AppInfo),
+		quitCh:        make(chan struct{}),
+		iconOverrides: overrides,
 	}
 
 	var err error

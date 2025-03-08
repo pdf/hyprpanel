@@ -408,6 +408,18 @@ func (h *host) run() error {
 
 	grp, errCtx := errgroup.WithContext(context.Background())
 
+	if h.apps != nil {
+		if err := h.apps.Close(); err != nil {
+			h.log.Error(`Failed to close app cache`, `err`, err)
+		}
+	}
+
+	apps, err := applications.New(h.log, h.cfg.IconOverrides)
+	if err != nil {
+		return fmt.Errorf("app cache initialization failed: %w", err)
+	}
+	h.apps = apps
+
 	if err := h.connectDBUS(); err != nil {
 		return fmt.Errorf("DBUS connection failed: %w", err)
 	}
@@ -522,11 +534,6 @@ func newHost(cfg *configv1.Config, stylesheet []byte, log hclog.Logger) (*host, 
 		reloadCh:    make(chan struct{}),
 		stopWatchCh: make(chan struct{}),
 		quitCh:      make(chan struct{}),
-	}
-
-	h.apps, err = applications.New(log)
-	if err != nil {
-		return nil, err
 	}
 
 	return h, nil

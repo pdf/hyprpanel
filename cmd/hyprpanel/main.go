@@ -45,9 +45,12 @@ func sigHandler(log hclog.Logger, h *host) {
 
 func main() {
 	fs := ff.NewFlagSet(name)
-	configPath := os.Getenv(`XDG_CONFIG_HOME`)
-	if configPath == `` {
+	var configPath string
+	xdgConfigPath := os.Getenv(`XDG_CONFIG_HOME`)
+	if xdgConfigPath == `` {
 		configPath = filepath.Join(os.Getenv(`HOME`), `.config`, `hyprpanel`)
+	} else {
+		configPath = filepath.Join(xdgConfigPath, `hyprpanel`)
 	}
 	configFileDefault := filepath.Join(configPath, `config.json`)
 	configFile := fs.String('c', `config`, configFileDefault, `Path to configuration file`)
@@ -92,7 +95,7 @@ func main() {
 			log.Error(`Failed loading default configuration file`, `err`, err)
 			os.Exit(1)
 		}
-		if err := os.MkdirAll(configPath, 0755); err != nil && err != os.ErrExist {
+		if err := os.MkdirAll(configPath, 0o755); err != nil && err != os.ErrExist {
 			log.Error(`Failed creating configuration directory`, `path`, configPath, `err`, err)
 			os.Exit(1)
 		}
@@ -109,7 +112,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := os.WriteFile(*configFile, b, 0644); err != nil {
+		if err := os.WriteFile(*configFile, b, 0o644); err != nil {
 			log.Error(`Failed writing default configuration file`, `file`, *configFile, `err`, err)
 			os.Exit(1)
 		}

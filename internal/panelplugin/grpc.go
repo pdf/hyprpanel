@@ -109,9 +109,9 @@ type HostGRPCClient struct {
 }
 
 // Exec implmenetation.
-func (c *HostGRPCClient) Exec(command string) error {
+func (c *HostGRPCClient) Exec(action *hyprpanelv1.AppInfo_Action) error {
 	_, err := c.client.Exec(context.Background(), &hyprpanelv1.HostServiceExecRequest{
-		Command: command,
+		Action: action,
 	})
 	return err
 }
@@ -271,7 +271,7 @@ type HostGRPCServer struct {
 
 // Exec implementation.
 func (s *HostGRPCServer) Exec(_ context.Context, req *hyprpanelv1.HostServiceExecRequest) (*hyprpanelv1.HostServiceExecResponse, error) {
-	err := s.Impl.Exec(req.Command)
+	err := s.Impl.Exec(req.Action)
 	if err != nil {
 		return &hyprpanelv1.HostServiceExecResponse{}, err
 	}

@@ -78,7 +78,7 @@
 | name | [string](#string) |  |  |
 | icon | [string](#string) |  |  |
 | try_exec | [string](#string) |  |  |
-| exec | [string](#string) |  |  |
+| exec | [string](#string) | repeated |  |
 | raw_exec | [string](#string) |  |  |
 | path | [string](#string) |  |  |
 | startup_wm_class | [string](#string) |  |  |
@@ -100,7 +100,7 @@
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  |  |
 | icon | [string](#string) |  |  |
-| exec | [string](#string) |  |  |
+| exec | [string](#string) | repeated |  |
 | raw_exec | [string](#string) |  |  |
 
 
@@ -276,7 +276,7 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| command | [string](#string) |  |  |
+| action | [AppInfo.Action](#hyprpanel-v1-AppInfo-Action) |  |  |
 
 
 

@@ -7,8 +7,10 @@ import (
 	"github.com/jwijenbergh/puregotk/v4/gdk"
 	"github.com/jwijenbergh/puregotk/v4/glib"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
+	"github.com/mattn/go-shellwords"
 	eventv1 "github.com/pdf/hyprpanel/proto/hyprpanel/event/v1"
 	modulev1 "github.com/pdf/hyprpanel/proto/hyprpanel/module/v1"
+	hyprpanelv1 "github.com/pdf/hyprpanel/proto/hyprpanel/v1"
 	"github.com/pdf/hyprpanel/style"
 )
 
@@ -200,11 +202,19 @@ func (a *audio) build(container *gtk.Box) error {
 	scrollController := gtk.NewEventControllerScroll(gtk.EventControllerScrollVerticalValue | gtk.EventControllerScrollDiscreteValue)
 	scrollController.ConnectScroll(&scrollCb)
 	a.container.AddController(&scrollController.EventController)
+	p := shellwords.NewParser()
+	p.ParseEnv = true
+	p.ParseBacktick = true
+	exec, err := p.Parse(a.cfg.CommandMixer)
+	if err != nil {
+		log.Warn(`Failed parsing command`, `module`, style.AudioID, `cmd`, a.cfg.CommandMixer, `err`, err)
+		return err
+	}
 
 	clickCb := func(ctrl gtk.GestureClick, nPress int, x, y float64) {
 		switch ctrl.GetCurrentButton() {
 		case uint(gdk.BUTTON_PRIMARY):
-			if err := a.panel.host.Exec(a.cfg.CommandMixer); err != nil {
+			if err := a.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `mixer`, Exec: exec}); err != nil {
 				log.Warn(`Failed launching application`, `module`, style.AudioID, `cmd`, a.cfg.CommandMixer, `err`, err)
 			}
 		case uint(gdk.BUTTON_SECONDARY):

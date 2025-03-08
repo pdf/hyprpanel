@@ -53,8 +53,8 @@ type host struct {
 	quitCh      chan struct{}
 }
 
-func (h *host) Exec(command string) error {
-	if command == `` {
+func (h *host) Exec(action *hyprpanelv1.AppInfo_Action) error {
+	if len(action.Exec) == 0 {
 		return fmt.Errorf(`empty command`)
 	}
 	var (
@@ -63,10 +63,13 @@ func (h *host) Exec(command string) error {
 	)
 	if h.cfg.LogSubprocessesToJournal {
 		c = `systemd-cat`
-		args = []string{`sh`, `-c`, command}
+		args = append(h.cfg.LaunchWrapper, action.Exec...)
+	} else if len(h.cfg.LaunchWrapper) == 0 {
+		c = h.cfg.LaunchWrapper[0]
+		args = append(h.cfg.LaunchWrapper[1:], action.Exec...)
 	} else {
-		c = `sh`
-		args = []string{`-c`, command}
+		c = action.Exec[0]
+		args = action.Exec[1:]
 	}
 	h.log.Debug(`Executing command`, `cmd`, c, `args`, args)
 	cmd := exec.Command(c, args...)
@@ -352,12 +355,16 @@ func (h *host) watch() {
 						h.log.Warn(`Brightness adjustment failed`, `err`, err)
 					}
 				case eventv1.EventKind_EVENT_KIND_EXEC:
-					cmd, err := eventv1.DataString(evt.Data)
-					if err != nil {
+					data := &hyprpanelv1.AppInfo_Action{}
+					if !evt.Data.MessageIs(data) {
 						h.log.Warn(`Invalid event`, `evt`, evt)
 						continue
 					}
-					if err := h.Exec(cmd); err != nil {
+					if err := evt.Data.UnmarshalTo(data); err != nil {
+						h.log.Warn(`Invalid event`, `evt`, evt, `err`, err)
+						continue
+					}
+					if err := h.Exec(data); err != nil {
 						h.log.Warn(`Exec failed`, `err`, err)
 					}
 				default:

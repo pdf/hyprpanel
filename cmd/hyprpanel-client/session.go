@@ -5,8 +5,10 @@ import (
 
 	"github.com/jwijenbergh/puregotk/v4/gdk"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
+	"github.com/mattn/go-shellwords"
 	gtk4layershell "github.com/pdf/hyprpanel/internal/gtk4-layer-shell"
 	modulev1 "github.com/pdf/hyprpanel/proto/hyprpanel/module/v1"
+	hyprpanelv1 "github.com/pdf/hyprpanel/proto/hyprpanel/v1"
 	"github.com/pdf/hyprpanel/style"
 )
 
@@ -46,6 +48,13 @@ func (s *session) build(container *gtk.Box) error {
 	buttonSize := int(math.Floor(float64(s.cfg.OverlayIconSize) * 1.5))
 
 	if s.cfg.CommandLogout != `` {
+		p := shellwords.NewParser()
+		p.ParseBacktick = true
+		p.ParseEnv = true
+		exec, err := p.Parse(s.cfg.CommandLogout)
+		if err != nil {
+			return err
+		}
 		logoutIcon, err := createIcon(`system-log-out`, int(s.cfg.OverlayIconSize), s.cfg.OverlayIconSymbolic, nil)
 		if err != nil {
 			return err
@@ -64,7 +73,7 @@ func (s *session) build(container *gtk.Box) error {
 		logout.Append(&logoutLabel.Widget)
 		logoutCb := func(_ gtk.Button) {
 			s.overlay.Hide()
-			if err := s.panel.host.Exec(s.cfg.CommandLogout); err != nil {
+			if err := s.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `logount`, Exec: exec}); err != nil {
 				log.Error(`Failed executing logout`, `module`, style.SessionID, `err`, err)
 			}
 		}
@@ -76,6 +85,13 @@ func (s *session) build(container *gtk.Box) error {
 	}
 
 	if s.cfg.CommandReboot != `` {
+		p := shellwords.NewParser()
+		p.ParseBacktick = true
+		p.ParseEnv = true
+		exec, err := p.Parse(s.cfg.CommandReboot)
+		if err != nil {
+			return err
+		}
 		rebootIcon, err := createIcon(`system-reboot`, int(s.cfg.OverlayIconSize), s.cfg.OverlayIconSymbolic, nil)
 		if err != nil {
 			return err
@@ -94,7 +110,7 @@ func (s *session) build(container *gtk.Box) error {
 		reboot.Append(&rebootLabel.Widget)
 		rebootCb := func(_ gtk.Button) {
 			s.overlay.Hide()
-			if err := s.panel.host.Exec(s.cfg.CommandReboot); err != nil {
+			if err := s.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `reboot`, Exec: exec}); err != nil {
 				log.Error(`Failed executing reboot`, `module`, style.SessionID, `err`, err)
 			}
 		}
@@ -106,6 +122,13 @@ func (s *session) build(container *gtk.Box) error {
 	}
 
 	if s.cfg.CommandSuspend != `` {
+		p := shellwords.NewParser()
+		p.ParseBacktick = true
+		p.ParseEnv = true
+		exec, err := p.Parse(s.cfg.CommandSuspend)
+		if err != nil {
+			return err
+		}
 		suspendIcon, err := createIcon(`system-suspend`, int(s.cfg.OverlayIconSize), s.cfg.OverlayIconSymbolic, nil)
 		if err != nil {
 			return err
@@ -124,7 +147,7 @@ func (s *session) build(container *gtk.Box) error {
 		suspend.Append(&suspendLabel.Widget)
 		suspendCb := func(_ gtk.Button) {
 			s.overlay.Hide()
-			if err := s.panel.host.Exec(s.cfg.CommandSuspend); err != nil {
+			if err := s.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `suspend`, Exec: exec}); err != nil {
 				log.Error(`Failed executing suspend`, `module`, style.SessionID, `err`, err)
 			}
 		}
@@ -136,6 +159,13 @@ func (s *session) build(container *gtk.Box) error {
 	}
 
 	if s.cfg.CommandShutdown != `` {
+		p := shellwords.NewParser()
+		p.ParseBacktick = true
+		p.ParseEnv = true
+		exec, err := p.Parse(s.cfg.CommandShutdown)
+		if err != nil {
+			return err
+		}
 		shutdownIcon, err := createIcon(`system-shutdown`, int(s.cfg.OverlayIconSize), s.cfg.OverlayIconSymbolic, nil)
 		if err != nil {
 			return err
@@ -154,7 +184,7 @@ func (s *session) build(container *gtk.Box) error {
 		shutdown.Append(&shutdownLabel.Widget)
 		shutdownCb := func(_ gtk.Button) {
 			s.overlay.Hide()
-			if err := s.panel.host.Exec(s.cfg.CommandShutdown); err != nil {
+			if err := s.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `shutdown`, Exec: exec}); err != nil {
 				log.Error(`Failed executing suspend`, `module`, style.SessionID, `err`, err)
 			}
 		}

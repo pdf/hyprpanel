@@ -1,6 +1,5 @@
 {
 	"log_level": "LOG_LEVEL_INFO",
-	"log_subprocesses_to_journal": true,
 	"dbus": {
 		"enabled": true,
 		"connect_timeout": "20s",
@@ -37,6 +36,7 @@
 		"hud_notifications": true
 	},
 	"icon_overrides": [],
+	"launch_wrapper": ["sh", "-c"],
 	"panels": [
 		{
 			"id": "panel0",

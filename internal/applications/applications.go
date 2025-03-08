@@ -13,6 +13,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/hashicorp/go-hclog"
+	"github.com/mattn/go-shellwords"
 	configv1 "github.com/pdf/hyprpanel/proto/hyprpanel/config/v1"
 	hyprpanelv1 "github.com/pdf/hyprpanel/proto/hyprpanel/v1"
 	"github.com/rkoesters/xdg/desktop"
@@ -106,7 +107,7 @@ func (a *AppCache) cacheWalk(path string, d fs.DirEntry, err error) error {
 		return err
 	}
 
-	app, err := newAppInfo(p)
+	app, err := newAppInfo(p, a.log)
 	if err != nil {
 		a.log.Error(`Failed parsing desktop file`, `file`, p, `err`, err)
 		return nil
@@ -188,7 +189,7 @@ func (a *AppCache) watch() {
 	}
 }
 
-func newAppInfo(file string) (*hyprpanelv1.AppInfo, error) {
+func newAppInfo(file string, log hclog.Logger) (*hyprpanelv1.AppInfo, error) {
 	r, err := os.Open(file)
 	if err != nil {
 		return nil, err
@@ -204,10 +205,14 @@ func newAppInfo(file string) (*hyprpanelv1.AppInfo, error) {
 		return nil, err
 	}
 
+	exec, err := parseExec(entry.Exec, entry, file)
+	if err != nil {
+		log.Warn(`Failed parsing Exec field`, `file`, file, `err`, err)
+	}
 	a.Name = entry.Name
 	a.Icon = entry.Icon
 	a.TryExec = entry.TryExec
-	a.Exec = parseExec(entry.Exec, entry, file)
+	a.Exec = exec
 	a.RawExec = entry.Exec
 	a.Path = entry.Path
 	a.StartupWmClass = entry.StartupWMClass
@@ -215,10 +220,14 @@ func newAppInfo(file string) (*hyprpanelv1.AppInfo, error) {
 	if len(entry.Actions) > 0 {
 		a.Actions = make([]*hyprpanelv1.AppInfo_Action, len(entry.Actions))
 		for i, action := range entry.Actions {
+			exec, err := parseExec(action.Exec, entry, file)
+			if err != nil {
+				log.Warn(`Failed parsing Action Exec field`, `file`, file, `action`, action.Name, `err`, err)
+			}
 			a.Actions[i] = &hyprpanelv1.AppInfo_Action{
 				Name:    action.Name,
 				Icon:    action.Icon,
-				Exec:    parseExec(action.Exec, entry, file),
+				Exec:    exec,
 				RawExec: action.Exec,
 			}
 		}
@@ -305,28 +314,44 @@ func New(log hclog.Logger, iconOverrides []*configv1.IconOverride) (*AppCache, e
 	return a, nil
 }
 
-func parseExec(exec string, i *desktop.Entry, desktopFile string) string {
-	if exec == `` {
-		return exec
+func parseExec(exec string, entry *desktop.Entry, desktopFile string) ([]string, error) {
+	if len(exec) == 0 {
+		return nil, fmt.Errorf(`empty Exec field`)
+	}
+	p := shellwords.NewParser()
+	p.ParseEnv = true
+	p.ParseBacktick = true
+	words, err := p.Parse(exec)
+	if err != nil {
+		return nil, err
 	}
 
-	exec = strings.ReplaceAll(exec, `%f`, ``)
-	exec = strings.ReplaceAll(exec, `%F`, ``)
-	exec = strings.ReplaceAll(exec, `%u`, ``)
-	exec = strings.ReplaceAll(exec, `%U`, ``)
-	exec = strings.ReplaceAll(exec, `%d`, ``)
-	exec = strings.ReplaceAll(exec, `%D`, ``)
-	exec = strings.ReplaceAll(exec, `%n`, ``)
-	exec = strings.ReplaceAll(exec, `%N`, ``)
-	exec = strings.ReplaceAll(exec, `%v`, ``)
-	exec = strings.ReplaceAll(exec, `%m`, ``)
-	if i.Icon != `` {
-		exec = strings.ReplaceAll(exec, `%i`, fmt.Sprintf("--icon %s", i.Icon))
+	command := make([]string, 0, len(words))
+	for _, word := range words {
+		switch word {
+		case ``:
+			continue
+		case `%f`, `%F`, `%u`, `%U`, `%d`, `%D`, `%n`, `%N`, `%v`, `%m`:
+			continue
+		case `%i`:
+			if len(entry.Icon) == 0 {
+				continue
+			}
+			command = append(command, `--icon`, entry.Icon)
+		case `%c`:
+			if len(entry.Name) == 0 {
+				continue
+			}
+			command = append(command, entry.Name)
+		case `%k`:
+			if len(desktopFile) == 0 {
+				continue
+			}
+			command = append(command, desktopFile)
+		default:
+			command = append(command, word)
+		}
 	}
-	if i.Name != `` {
-		exec = strings.ReplaceAll(exec, `%c`, fmt.Sprintf("'%s'", i.Name))
-	}
-	exec = strings.ReplaceAll(exec, `%k`, fmt.Sprintf("'%s'", desktopFile))
 
-	return strings.TrimSpace(exec)
+	return command, nil
 }

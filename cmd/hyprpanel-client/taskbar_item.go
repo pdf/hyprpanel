@@ -212,7 +212,7 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 		}
 		actionCb := func(action gio.SimpleAction, param uintptr) {
 			i.launchIndicator()
-			if err := i.bar.panel.host.Exec(i.appInfo.Exec); err != nil {
+			if err := i.bar.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: i.appInfo.Name, Icon: i.appInfo.Icon, Exec: i.appInfo.Exec}); err != nil {
 				log.Warn(`Failed launching application`, `module`, style.SystrayID, `cmd`, i.appInfo.Exec, `err`, err)
 			}
 		}
@@ -249,8 +249,8 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 				},
 			})
 			actionCb := func(action gio.SimpleAction, param uintptr) {
-				if err := i.bar.panel.host.Exec(a.Exec); err != nil {
-					log.Warn(`Failed launching application`, `module`, style.SystrayID, `cmd`, i.appInfo.Exec, `err`, err)
+				if err := i.bar.panel.host.Exec(a); err != nil {
+					log.Warn(`Failed launching application`, `module`, style.SystrayID, `cmd`, a.Exec, `err`, err)
 				}
 			}
 			i.menuRefs.AddRef(func() {
@@ -571,13 +571,13 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 				}
 			} else {
 				i.launchIndicator()
-				if err := i.bar.panel.host.Exec(i.appInfo.Exec); err != nil {
+				if err := i.bar.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: i.appInfo.Name, Icon: i.appInfo.Icon, Exec: i.appInfo.Exec}); err != nil {
 					log.Warn(`Failed launching application`, `module`, style.SystrayID, `cmd`, i.appInfo.Exec, `err`, err)
 				}
 			}
 		case gdk.BUTTON_MIDDLE:
 			i.launchIndicator()
-			if err := i.bar.panel.host.Exec(i.appInfo.Exec); err != nil {
+			if err := i.bar.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: i.appInfo.Name, Icon: i.appInfo.Icon, Exec: i.appInfo.Exec}); err != nil {
 				log.Warn(`Failed launching application`, `module`, style.SystrayID, `cmd`, i.appInfo.Exec, `err`, err)
 			}
 		case gdk.BUTTON_SECONDARY:

@@ -38,11 +38,12 @@
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | log_level | [LogLevel](#hyprpanel-config-v1-LogLevel) |  | specifies the maximum log level for output. |
-| log_subprocesses_to_journal | [bool](#bool) |  | send processes spawned by e.g. taskbar launchers to the systemd journal via sytstemd-cat. |
+| log_subprocesses_to_journal | [bool](#bool) |  | **Deprecated.** Deprecated: set launch_wrapper to [&#34;systemd-cat&#34;] to emulate this behaviour. |
 | dbus | [Config.DBUS](#hyprpanel-config-v1-Config-DBUS) |  | dbus configuration section. |
 | audio | [Config.Audio](#hyprpanel-config-v1-Config-Audio) |  | audio configuration section. |
 | panels | [Panel](#hyprpanel-config-v1-Panel) | repeated | list of panels to display. |
 | icon_overrides | [IconOverride](#hyprpanel-config-v1-IconOverride) | repeated | list of icon overrides. |
+| launch_wrapper | [string](#string) | repeated | command to wrap application launches with (e.g. [&#34;uwsm&#34;, &#34;app&#34;, &#34;--&#34;]). |
 
 
 

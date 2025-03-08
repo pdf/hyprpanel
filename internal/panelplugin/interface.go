@@ -33,7 +33,7 @@ var PluginMap = map[string]plugin.Plugin{
 
 // Host interface.
 type Host interface {
-	Exec(command string) error
+	Exec(action *hyprpanelv1.AppInfo_Action) error
 	FindApplication(query string) (*hyprpanelv1.AppInfo, error)
 	SystrayActivate(busName string, x, y int32) error
 	SystraySecondaryActivate(busName string, x, y int32) error

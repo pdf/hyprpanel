@@ -86,9 +86,10 @@ message Config {
   }
 
   LogLevel log_level = 1; // specifies the maximum log level for output.
-  bool log_subprocesses_to_journal = 2; // send processes spawned by e.g. taskbar launchers to the systemd journal via sytstemd-cat.
+  bool log_subprocesses_to_journal = 2 [deprecated = true]; // Deprecated: set launch_wrapper to ["systemd-cat"] to emulate this behaviour.
   DBUS dbus = 3; // dbus configuration section.
   Audio audio = 4; // audio configuration section.
   repeated Panel panels = 6; // list of panels to display.
   repeated IconOverride icon_overrides = 7; // list of icon overrides.
+  repeated string launch_wrapper = 8; // command to wrap application launches with (e.g. ["uwsm", "app", "--"]).
 }

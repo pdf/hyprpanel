@@ -36,7 +36,7 @@ message AppInfo {
   message Action {
     string name = 1;
     string icon = 2;
-    string exec = 3;
+    repeated string exec = 3;
     string raw_exec = 4;
   }
 
@@ -44,7 +44,7 @@ message AppInfo {
   string name = 2;
   string icon = 3;
   string try_exec = 4;
-  string exec = 5;
+  repeated string exec = 5;
   string raw_exec = 6;
   string path = 7;
   string startup_wm_class = 8;
@@ -81,7 +81,7 @@ service PanelService {
 }
 
 message HostServiceExecRequest {
-  string command = 1;
+  AppInfo.Action action = 1;
 }
 message HostServiceExecResponse {}
 

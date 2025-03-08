@@ -1,17 +1,24 @@
-version: v1
+version: v2
 
 managed:
   enabled: true
-  go_package_prefix:
-    default: github.com/pdf/hyprpanel/proto
-    except:
-      - buf.build/googleapis/googleapis
+  override:
+    - file_option: go_package_prefix
+      value: github.com/pdf/hyprpanel/proto
 plugins:
-  - plugin: buf.build/protocolbuffers/go:v1.32.0
+  - remote: buf.build/protocolbuffers/go:v1.32.0
     out: .
     opt:
       - paths=source_relative
-  - plugin: buf.build/grpc/go:v1.3.0
+  - remote: buf.build/grpc/go:v1.3.0
     out: .
     opt:
       - paths=source_relative
+  - local:
+      [
+        "go",
+        "run",
+        "github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v1.5.1",
+      ]
+    out: ./doc
+    opt: markdown,doc.md,source_relative

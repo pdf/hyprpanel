@@ -16,17 +16,19 @@ import (
 
 type notificationItem struct {
 	*refTracker
-	n       *notifications
-	data    *eventv1.NotificationValue
-	timeout time.Duration
-	timer   *time.Timer
-	closed  chan struct{}
+	*api
+	cfg      *modulev1.Notifications
+	data     *eventv1.NotificationValue
+	deleteFn func(uint32)
+	timeout  time.Duration
+	timer    *time.Timer
+	closed   chan struct{}
 
 	container *gtk.Revealer
 }
 
 func (i *notificationItem) focusWindow(addr string) error {
-	return i.n.panel.hypr.Dispatch(hypripc.DispatchFocusWindow, `address:`+addr)
+	return i.hypr.Dispatch(hypripc.DispatchFocusWindow, `address:`+addr)
 }
 
 func (i *notificationItem) build(container *gtk.Box) error {
@@ -68,14 +70,14 @@ func (i *notificationItem) build(container *gtk.Box) error {
 		var cb glib.SourceFunc
 		cb = func(uintptr) bool {
 			defer unrefCallback(&cb)
-			i.n.deleteNotification(i.data.Id)
+			i.deleteFn(i.data.Id)
 			return false
 		}
 		glib.IdleAdd(&cb, 0)
 	}
 	i.container.ConnectUnmap(&unmapCb)
 
-	switch i.n.cfg.Position {
+	switch i.cfg.Position {
 	case modulev1.Position_POSITION_BOTTOM_LEFT, modulev1.Position_POSITION_BOTTOM, modulev1.Position_POSITION_BOTTOM_RIGHT:
 		i.container.SetTransitionType(gtk.RevealerTransitionTypeSlideUpValue)
 	default:
@@ -88,7 +90,7 @@ func (i *notificationItem) build(container *gtk.Box) error {
 	outer.SetHexpand(false)
 	outer.SetHalign(gtk.AlignEndValue)
 
-	switch i.n.cfg.Position {
+	switch i.cfg.Position {
 	case modulev1.Position_POSITION_LEFT, modulev1.Position_POSITION_TOP_LEFT, modulev1.Position_POSITION_BOTTOM_LEFT, modulev1.Position_POSITION_TOP, modulev1.Position_POSITION_BOTTOM:
 		i.container.SetHalign(gtk.AlignStartValue)
 	default:
@@ -115,7 +117,7 @@ func (i *notificationItem) build(container *gtk.Box) error {
 			if err != nil || len(v) == 0 {
 				continue
 			}
-			if icon, err := createIcon(v, int(i.n.cfg.NotificationIconSize), false, []string{`dialog-information`, `dialog-information-symbolic`, `notifications`, `notification`, `help-info`}); err == nil {
+			if icon, err := createIcon(v, int(i.cfg.NotificationIconSize), false, []string{`dialog-information`, `dialog-information-symbolic`, `notifications`, `notification`, `help-info`}); err == nil {
 				defer icon.Unref()
 				iconContainer.SetCenterWidget(&icon.Widget)
 				hasIcon = true
@@ -135,13 +137,13 @@ func (i *notificationItem) build(container *gtk.Box) error {
 				continue
 			}
 
-			pixbuf, err := pixbufFromNotificationData(v, int(i.n.cfg.NotificationIconSize))
+			pixbuf, err := pixbufFromNotificationData(v, int(i.cfg.NotificationIconSize))
 			if err != nil {
 				log.Debug(`Failed encoding notification icon`, `module`, style.NotificationsID, `err`, err)
 				continue
 			}
 			icon := gtk.NewImageFromPixbuf(pixbuf)
-			icon.SetPixelSize(int(i.n.cfg.NotificationIconSize))
+			icon.SetPixelSize(int(i.cfg.NotificationIconSize))
 			iconContainer.SetCenterWidget(&icon.Widget)
 			hasIcon = true
 
@@ -149,7 +151,7 @@ func (i *notificationItem) build(container *gtk.Box) error {
 	}
 
 	if !hasIcon && i.data.AppIcon != `` {
-		if icon, err := createIcon(i.data.AppIcon, int(i.n.cfg.NotificationIconSize), false, []string{`dialog-information`, `dialog-information-symbolic`, `notifications`, `notification`, `help-info`}); err == nil {
+		if icon, err := createIcon(i.data.AppIcon, int(i.cfg.NotificationIconSize), false, []string{`dialog-information`, `dialog-information-symbolic`, `notifications`, `notification`, `help-info`}); err == nil {
 			iconContainer.SetCenterWidget(&icon.Widget)
 		}
 	}
@@ -219,7 +221,7 @@ func (i *notificationItem) build(container *gtk.Box) error {
 			btn.SetHexpand(true)
 			btn.SetChild(&label.Widget)
 			cb := func(gtk.Button) {
-				if err := i.n.panel.host.NotificationAction(i.data.Id, action.Key); err != nil {
+				if err := i.host.NotificationAction(i.data.Id, action.Key); err != nil {
 					log.Debug(`Failed submitting activation`, `module`, style.NotificationsID, `actionKey`, action.Key, `err`, err)
 				}
 			}
@@ -266,7 +268,7 @@ func (i *notificationItem) build(container *gtk.Box) error {
 			if !hasDefaultAction {
 				return
 			}
-			if err := i.n.panel.host.NotificationAction(i.data.Id, `default`); err != nil {
+			if err := i.host.NotificationAction(i.data.Id, `default`); err != nil {
 				log.Debug(`Failed submitting activation`, `module`, style.NotificationsID, `actionKey`, `default`, `err`, err)
 			}
 			for _, hint := range i.data.Hints {
@@ -276,7 +278,7 @@ func (i *notificationItem) build(container *gtk.Box) error {
 						log.Debug(`Malformed pid`, `module`, style.NotificationsID, hint.Key, hint.Value, `err`, err)
 						return
 					}
-					clients, err := i.n.panel.hypr.Clients()
+					clients, err := i.hypr.Clients()
 					if err != nil {
 						break
 					}
@@ -386,14 +388,16 @@ func (i *notificationItem) close() {
 	})
 }
 
-func newNotificationItem(n *notifications, data *eventv1.NotificationValue) *notificationItem {
+func newNotificationItem(cfg *modulev1.Notifications, a *api, data *eventv1.NotificationValue, deleteFn func(uint32)) *notificationItem {
 	i := &notificationItem{
 		refTracker: newRefTracker(),
-		n:          n,
+		api:        a,
+		cfg:        cfg,
 		data:       data,
+		deleteFn:   deleteFn,
 		closed:     make(chan struct{}, 1),
 	}
-	i.timeout = i.n.cfg.DefaultTimeout.AsDuration()
+	i.timeout = i.cfg.DefaultTimeout.AsDuration()
 	if i.data.Timeout.AsDuration() > 0 {
 		i.timeout = i.data.Timeout.AsDuration()
 	}

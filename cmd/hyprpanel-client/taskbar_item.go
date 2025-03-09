@@ -12,8 +12,8 @@ import (
 	"github.com/jwijenbergh/puregotk/v4/glib"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"github.com/pdf/hyprpanel/internal/hypripc"
-	"github.com/pdf/hyprpanel/internal/panelplugin"
 	configv1 "github.com/pdf/hyprpanel/proto/hyprpanel/config/v1"
+	modulev1 "github.com/pdf/hyprpanel/proto/hyprpanel/module/v1"
 	hyprpanelv1 "github.com/pdf/hyprpanel/proto/hyprpanel/v1"
 	"github.com/pdf/hyprpanel/style"
 )
@@ -41,10 +41,12 @@ func (s sortableClients) Less(i, j int) bool {
 
 type taskbarItem struct {
 	*refTracker
-	bar             *taskbar
+	*api
+	cfg             *modulev1.Taskbar
 	class           string
 	pinned          bool
 	scale           float64
+	size            uint32
 	activeClient    string
 	activeClientIdx int
 	title           string
@@ -117,7 +119,7 @@ func (i *taskbarItem) buildMenu() error {
 		menuModel := &gio.MenuModel{}
 		menuObj.Cast(menuModel)
 		i.menu = gtk.NewPopoverMenuFromModel(menuModel)
-		switch i.bar.panel.cfg.Edge {
+		switch i.panelCfg.Edge {
 		case configv1.Edge_EDGE_TOP:
 			i.menu.SetPosition(gtk.PosBottomValue)
 		case configv1.Edge_EDGE_RIGHT:
@@ -168,7 +170,7 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 				},
 			})
 			actionCb := func(action gio.SimpleAction, param uintptr) {
-				if err := i.bar.panel.hypr.Dispatch(hypripc.DispatchFocusWindow, `address:`+c.Address); err != nil {
+				if err := i.hypr.Dispatch(hypripc.DispatchFocusWindow, `address:`+c.Address); err != nil {
 					log.Debug(`Focus window failed`, `module`, style.TaskbarID, `err`, err)
 				}
 			}
@@ -176,7 +178,7 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 				unrefCallback(&actionCb)
 			})
 			var action *gio.SimpleAction
-			if i.bar.cfg.GroupTasks && len(i.clients) > 1 {
+			if i.cfg.GroupTasks && len(i.clients) > 1 {
 				state := glib.NewVariantBoolean(c.Address == i.activeClient)
 				action = gio.NewSimpleActionStateful(actionName, nil, state)
 			} else {
@@ -212,7 +214,7 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 		}
 		actionCb := func(action gio.SimpleAction, param uintptr) {
 			i.launchIndicator()
-			if err := i.bar.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: i.appInfo.Name, Icon: i.appInfo.Icon, Exec: i.appInfo.Exec}); err != nil {
+			if err := i.host.Exec(&hyprpanelv1.AppInfo_Action{Name: i.appInfo.Name, Icon: i.appInfo.Icon, Exec: i.appInfo.Exec}); err != nil {
 				log.Warn(`Failed launching application`, `module`, style.SystrayID, `cmd`, i.appInfo.Exec, `err`, err)
 			}
 		}
@@ -249,7 +251,7 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 				},
 			})
 			actionCb := func(action gio.SimpleAction, param uintptr) {
-				if err := i.bar.panel.host.Exec(a); err != nil {
+				if err := i.host.Exec(a); err != nil {
 					log.Warn(`Failed launching application`, `module`, style.SystrayID, `cmd`, a.Exec, `err`, err)
 				}
 			}
@@ -284,7 +286,7 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 			},
 		})
 		actionCb := func(action gio.SimpleAction, param uintptr) {
-			if err := i.bar.panel.hypr.Dispatch(hypripc.DispatchCloseWindow, `address:`+id); err != nil {
+			if err := i.hypr.Dispatch(hypripc.DispatchCloseWindow, `address:`+id); err != nil {
 				log.Debug(`Close window failed`, `module`, style.TaskbarID, `err`, err)
 			}
 		}
@@ -305,21 +307,22 @@ func (i *taskbarItem) buildMenuXML() (string, []byte, error) {
 	return id, b, err
 }
 
-func (i *taskbarItem) updateScale(scale float64) {
+func (i *taskbarItem) updateScale(scale float64, size uint32) {
 	i.scale = scale
-	scaledSize := int(math.Floor(float64(i.bar.itemSize) * i.scale))
-	if i.bar.panel.orientation == gtk.OrientationHorizontalValue {
-		i.container.SetSizeRequest(scaledSize, int(i.bar.itemSize))
+	i.size = size
+	scaledSize := int(math.Floor(float64(i.size) * i.scale))
+	if i.orientation == gtk.OrientationHorizontalValue {
+		i.container.SetSizeRequest(scaledSize, int(i.size))
 	} else {
-		i.container.SetSizeRequest(int(i.bar.itemSize), scaledSize)
+		i.container.SetSizeRequest(int(i.size), scaledSize)
 	}
-	i.icon.SetPixelSize(int(math.Floor(float64(i.bar.cfg.IconSize) * i.scale)))
+	i.icon.SetPixelSize(int(math.Floor(float64(i.cfg.IconSize) * i.scale)))
 }
 
 func (i *taskbarItem) launchIndicator() {
 	spinner := gtk.NewSpinner()
 	spinner.SetSizeRequest(8, 8)
-	if i.bar.panel.orientation == gtk.OrientationHorizontalValue {
+	if i.orientation == gtk.OrientationHorizontalValue {
 		spinner.SetHexpand(true)
 		spinner.SetHalign(gtk.AlignCenterValue)
 	} else {
@@ -343,7 +346,7 @@ func (i *taskbarItem) launchIndicator() {
 }
 
 func (i *taskbarItem) updateIndicator() {
-	if i.bar.cfg.HideIndicators {
+	if i.cfg.HideIndicators {
 		return
 	}
 	for c := i.indicator.GetLastChild(); c != nil; c = i.indicator.GetFirstChild() {
@@ -352,9 +355,9 @@ func (i *taskbarItem) updateIndicator() {
 	}
 
 	for n := range i.sortedClients {
-		c := gtk.NewBox(i.bar.panel.orientation, 0)
+		c := gtk.NewBox(i.orientation, 0)
 		defer c.Unref()
-		if i.bar.panel.orientation == gtk.OrientationHorizontalValue {
+		if i.orientation == gtk.OrientationHorizontalValue {
 			c.SetHexpand(true)
 			c.SetSizeRequest(-1, 4)
 		} else {
@@ -362,7 +365,7 @@ func (i *taskbarItem) updateIndicator() {
 			c.SetSizeRequest(4, -1)
 		}
 
-		switch i.bar.panel.cfg.Edge {
+		switch i.panelCfg.Edge {
 		case configv1.Edge_EDGE_TOP:
 			c.SetValign(gtk.AlignEndValue)
 		case configv1.Edge_EDGE_RIGHT:
@@ -381,7 +384,7 @@ func (i *taskbarItem) updateIndicator() {
 	}
 }
 
-func (i *taskbarItem) updateClient(client *hypripc.Client, active bool) error {
+func (i *taskbarItem) updateClient(client *hypripc.Client, active bool, activeClient string) error {
 	updated := false
 
 	if i.activeClient == `` || (active && i.activeClient != client.Address) {
@@ -403,9 +406,9 @@ func (i *taskbarItem) updateClient(client *hypripc.Client, active bool) error {
 		updated = true
 	}
 	var tooltip string
-	if activeClient, ok := i.clients[i.activeClient]; ok {
-		tooltip = activeClient.Title
-		if i.activeClient == i.bar.activeClient {
+	if client, ok := i.clients[i.activeClient]; ok {
+		tooltip = client.Title
+		if i.activeClient == activeClient {
 			if !i.container.HasCssClass(style.ActiveClass) {
 				i.container.AddCssClass(style.ActiveClass)
 			}
@@ -482,17 +485,13 @@ func (i *taskbarItem) shouldPreview() bool {
 	return i.activeClient != ``
 }
 
-func (i *taskbarItem) host() panelplugin.Host {
-	return i.bar.panel.host
-}
-
 func (i *taskbarItem) build(container *gtk.Box) error {
 	var err error
-	i.appInfo, err = i.bar.panel.host.FindApplication(i.class)
+	i.appInfo, err = i.host.FindApplication(i.class)
 	if err != nil {
 		return err
 	}
-	icon, err := createIcon(i.appInfo.Icon, int(i.bar.cfg.IconSize), false, nil)
+	icon, err := createIcon(i.appInfo.Icon, int(i.cfg.IconSize), false, nil)
 	if err != nil {
 		return err
 	}
@@ -509,14 +508,14 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 	i.iconContainer.SetVexpand(true)
 	i.iconContainer.SetHexpand(true)
 
-	i.indicator = gtk.NewBox(i.bar.panel.orientation, 2)
+	i.indicator = gtk.NewBox(i.orientation, 2)
 	i.AddRef(i.indicator.Unref)
 	i.indicator.SetMarginTop(4)
 	i.indicator.SetMarginEnd(4)
 	i.indicator.SetMarginBottom(4)
 	i.indicator.SetMarginStart(4)
 
-	switch i.bar.panel.cfg.Edge {
+	switch i.panelCfg.Edge {
 	case configv1.Edge_EDGE_TOP:
 		i.indicator.SetHalign(gtk.AlignCenterValue)
 		i.indicator.SetValign(gtk.AlignEndValue)
@@ -531,12 +530,12 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 		i.indicator.SetValign(gtk.AlignStartValue)
 	}
 
-	if i.bar.panel.orientation == gtk.OrientationHorizontalValue {
-		i.indicator.SetSizeRequest(int(i.bar.itemSize)/2, 4)
+	if i.orientation == gtk.OrientationHorizontalValue {
+		i.indicator.SetSizeRequest(int(i.size)/2, 4)
 		i.wrapper.SetHalign(gtk.AlignStartValue)
 		i.wrapper.SetValign(gtk.AlignCenterValue)
 	} else {
-		i.indicator.SetSizeRequest(4, int(i.bar.itemSize)/2)
+		i.indicator.SetSizeRequest(4, int(i.size)/2)
 		i.wrapper.SetHalign(gtk.AlignCenterValue)
 		i.wrapper.SetValign(gtk.AlignStartValue)
 	}
@@ -551,7 +550,7 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 
 	if i.activeClient != `` {
 		i.updateIndicator()
-		if err := i.updateClient(i.clients[i.activeClient], true); err != nil {
+		if err := i.updateClient(i.clients[i.activeClient], true, i.activeClient); err != nil {
 			return err
 		}
 	}
@@ -566,18 +565,18 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 		switch int(button) {
 		case gdk.BUTTON_PRIMARY:
 			if i.activeClient != `` {
-				if err := i.bar.panel.hypr.Dispatch(hypripc.DispatchFocusWindow, `address:`+i.activeClient); err != nil {
+				if err := i.hypr.Dispatch(hypripc.DispatchFocusWindow, `address:`+i.activeClient); err != nil {
 					log.Warn(`Focus client failed`, `module`, style.TaskbarID, `err`, err)
 				}
 			} else {
 				i.launchIndicator()
-				if err := i.bar.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: i.appInfo.Name, Icon: i.appInfo.Icon, Exec: i.appInfo.Exec}); err != nil {
+				if err := i.host.Exec(&hyprpanelv1.AppInfo_Action{Name: i.appInfo.Name, Icon: i.appInfo.Icon, Exec: i.appInfo.Exec}); err != nil {
 					log.Warn(`Failed launching application`, `module`, style.SystrayID, `cmd`, i.appInfo.Exec, `err`, err)
 				}
 			}
 		case gdk.BUTTON_MIDDLE:
 			i.launchIndicator()
-			if err := i.bar.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: i.appInfo.Name, Icon: i.appInfo.Icon, Exec: i.appInfo.Exec}); err != nil {
+			if err := i.host.Exec(&hyprpanelv1.AppInfo_Action{Name: i.appInfo.Name, Icon: i.appInfo.Icon, Exec: i.appInfo.Exec}); err != nil {
 				log.Warn(`Failed launching application`, `module`, style.SystrayID, `cmd`, i.appInfo.Exec, `err`, err)
 			}
 		case gdk.BUTTON_SECONDARY:
@@ -612,7 +611,7 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 	motionController.ConnectLeave(&leaveCb)
 	i.container.AddController(&motionController.EventController)
 
-	if i.bar.cfg.GroupTasks {
+	if i.cfg.GroupTasks {
 		scrollController := gtk.NewEventControllerScroll(gtk.EventControllerScrollVerticalValue | gtk.EventControllerScrollDiscreteValue)
 		scrollCb := func(ctrl gtk.EventControllerScroll, dx, dy float64) bool {
 			if len(i.sortedClients) == 0 {
@@ -633,7 +632,7 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 				}
 			}
 
-			if err := i.bar.panel.hypr.Dispatch(hypripc.DispatchFocusWindow, `address:`+i.sortedClients[idx].Address); err != nil {
+			if err := i.hypr.Dispatch(hypripc.DispatchFocusWindow, `address:`+i.sortedClients[idx].Address); err != nil {
 				log.Warn(`Focus client failed`, `module`, style.TaskbarID, `err`, err)
 			}
 
@@ -644,12 +643,12 @@ func (i *taskbarItem) build(container *gtk.Box) error {
 	}
 
 	i.container.SetHasTooltip(true)
-	previewHeight := int(i.bar.cfg.PreviewWidth * 9 / 16)
-	tooltipCb := tooltipPreview(i, int(i.bar.cfg.PreviewWidth), previewHeight)
+	previewHeight := int(i.cfg.PreviewWidth * 9 / 16)
+	tooltipCb := tooltipPreview(i, int(i.cfg.PreviewWidth), previewHeight)
 	i.AddRef(func() { unrefCallback(&tooltipCb) })
 	i.container.ConnectQueryTooltip(&tooltipCb)
 
-	i.updateScale(i.scale)
+	i.updateScale(i.scale, i.size)
 
 	i.wrapper.SetChild(&i.container.Widget)
 	container.Append(&i.wrapper.Widget)
@@ -681,13 +680,15 @@ func (i *taskbarItem) Unref() {
 	i.refTracker.Unref()
 }
 
-func newTaskbarItem2(bar *taskbar, class string, pinned bool, client *hypripc.Client) *taskbarItem {
+func newTaskbarItem(cfg *modulev1.Taskbar, a *api, class string, pinned bool, scale float64, size uint32, client *hypripc.Client) *taskbarItem {
 	i := &taskbarItem{
 		refTracker:    newRefTracker(),
-		bar:           bar,
+		api:           a,
+		cfg:           cfg,
 		class:         class,
 		pinned:        pinned,
-		scale:         bar.itemScale,
+		scale:         scale,
+		size:          size,
 		clients:       make(map[string]*hypripc.Client),
 		sortedClients: make(sortableClients, 0),
 		menuRefs:      newRefTracker(),

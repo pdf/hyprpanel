@@ -21,21 +21,18 @@ const (
 
 type systray struct {
 	*refTracker
-	panel     *panel
+	*api
 	cfg       *modulev1.Systray
 	items     map[string]*systrayItem
 	modules   []module
 	receivers map[module]chan<- *eventv1.Event
 	eventCh   chan *eventv1.Event
-	hidden    chan struct{}
 	quitCh    chan struct{}
 
 	container             *gtk.Box
 	clientContainer       *gtk.FlowBox
 	clientHiddenContainer *gtk.FlowBox
-	revealer              *gtk.Revealer
-	revealBtn             *gtk.Button
-	hideInhibitor         *systrayInhibitor
+	inhibitor             *systrayInhibitor
 }
 
 func (s *systray) addItem(itemData *eventv1.StatusNotifierValue) error {
@@ -43,7 +40,7 @@ func (s *systray) addItem(itemData *eventv1.StatusNotifierValue) error {
 		return errors.New(`item already exists in addItem`)
 	}
 
-	item := newSystrayItem(s, itemData)
+	item := newSystrayItem(s.cfg, s.api, s.inhibitor, itemData)
 	if err := item.build(s.clientContainer, s.clientHiddenContainer); err != nil {
 		return err
 	}
@@ -73,37 +70,17 @@ func (s *systray) deleteItem(busName string) error {
 	return nil
 }
 
-func (s *systray) updateRevealBtn() {
-	if s.panel.orientation == gtk.OrientationHorizontalValue {
-		if s.revealer.GetChildRevealed() && s.revealBtn.GetLabel() != systrayRevealLabelRight {
-			s.revealBtn.SetLabel(systrayRevealLabelRight)
-		} else if s.revealBtn.GetLabel() != systrayRevealLabelLeft {
-			s.revealBtn.SetLabel(systrayRevealLabelLeft)
-		}
-	} else {
-		if s.revealer.GetChildRevealed() && s.revealBtn.GetLabel() != systrayRevealLabelDown {
-			s.revealBtn.SetLabel(systrayRevealLabelDown)
-		} else if s.revealBtn.GetLabel() != systrayRevealLabelUp {
-			s.revealBtn.SetLabel(systrayRevealLabelUp)
-		}
-	}
-}
-
 func (s *systray) build(container *gtk.Box) error {
-	s.container = gtk.NewBox(s.panel.orientation, 0)
+	s.container = gtk.NewBox(s.orientation, 0)
 	s.AddRef(s.container.Unref)
 	s.container.SetName(style.SystrayID)
 	s.container.AddCssClass(style.ModuleClass)
-
-	s.revealer = gtk.NewRevealer()
-	s.AddRef(s.revealer.Unref)
-	s.revealer.SetRevealChild(false)
 
 	s.clientContainer = gtk.NewFlowBox()
 	s.clientContainer.SetHomogeneous(true)
 	s.clientContainer.SetSelectionMode(gtk.SelectionNoneValue)
 	s.clientContainer.SetActivateOnSingleClick(false)
-	if s.panel.orientation == gtk.OrientationHorizontalValue {
+	if s.orientation == gtk.OrientationHorizontalValue {
 		s.clientContainer.SetOrientation(gtk.OrientationVerticalValue)
 	} else {
 		s.clientContainer.SetOrientation(gtk.OrientationHorizontalValue)
@@ -114,82 +91,38 @@ func (s *systray) build(container *gtk.Box) error {
 	s.clientHiddenContainer.SetHomogeneous(true)
 	s.clientHiddenContainer.SetSelectionMode(gtk.SelectionNoneValue)
 	s.clientHiddenContainer.SetActivateOnSingleClick(false)
-	if s.panel.orientation == gtk.OrientationHorizontalValue {
+	if s.orientation == gtk.OrientationHorizontalValue {
 		s.clientHiddenContainer.SetOrientation(gtk.OrientationVerticalValue)
 	} else {
 		s.clientHiddenContainer.SetOrientation(gtk.OrientationHorizontalValue)
 	}
 
+	if err := s.inhibitor.build(s.container, &s.clientHiddenContainer.Widget); err != nil {
+		return err
+	}
+
 	if s.cfg.AutoHideDelay.AsDuration() != 0 {
-		hideInhibController := s.hideInhibitor.newController()
+		hideInhibController := s.inhibitor.newController()
 		s.container.AddController(&hideInhibController.EventController)
 	}
 
-	s.revealBtn = gtk.NewButton()
-	s.AddRef(s.revealBtn.Unref)
-	s.updateRevealBtn()
-
-	revealBtnCb := func(gtk.Button) {
-		s.hideInhibitor.inhibit()
-		s.revealer.SetRevealChild(!s.revealer.GetRevealChild())
-	}
-	s.AddRef(func() {
-		unrefCallback(&revealBtnCb)
-	})
-	s.revealBtn.ConnectClicked(&revealBtnCb)
-
-	revealCb := func() {
-		s.updateRevealBtn()
-		if s.cfg.AutoHideDelay.AsDuration() == 0 {
-			return
-		}
-
-		if s.revealer.GetRevealChild() {
-			go func() {
-				select {
-				case <-s.hidden:
-				case <-s.hideInhibitor.wait():
-					var cb glib.SourceFunc
-					cb = func(uintptr) bool {
-						defer unrefCallback(&cb)
-						s.revealer.SetRevealChild(false)
-						return false
-					}
-					glib.IdleAdd(&cb, 0)
-				}
-			}()
-		} else {
-			s.hideInhibitor.inhibit()
-			select {
-			case s.hidden <- struct{}{}:
-			default:
-			}
-		}
-	}
-	s.AddRef(func() {
-		unrefCallback(&revealCb)
-	})
-	s.revealer.ConnectSignal(`notify::child-revealed`, &revealCb)
-
-	s.revealer.SetChild(&s.clientHiddenContainer.Widget)
-
-	if s.panel.orientation == gtk.OrientationHorizontalValue {
-		s.container.SetSizeRequest(-1, int(s.panel.cfg.Size))
-		s.clientContainer.SetSizeRequest(-1, int(s.panel.cfg.Size))
+	if s.orientation == gtk.OrientationHorizontalValue {
+		s.container.SetSizeRequest(-1, int(s.panelCfg.Size))
+		s.clientContainer.SetSizeRequest(-1, int(s.panelCfg.Size))
 	} else {
-		s.container.SetSizeRequest(int(s.panel.cfg.Size), -1)
-		s.clientContainer.SetSizeRequest(int(s.panel.cfg.Size), -1)
+		s.container.SetSizeRequest(int(s.panelCfg.Size), -1)
+		s.clientContainer.SetSizeRequest(int(s.panelCfg.Size), -1)
 	}
 
 	for _, modCfg := range s.cfg.Modules {
 		switch modCfg.Kind.(type) {
 		case *modulev1.SystrayModule_Audio:
 			cfg := modCfg.GetAudio()
-			mod := newAudio(s.panel, cfg)
+			mod := newAudio(cfg, s.api)
 			s.modules = append(s.modules, mod)
 		case *modulev1.SystrayModule_Power:
 			cfg := modCfg.GetPower()
-			mod := newPower(s.panel, cfg)
+			mod := newPower(cfg, s.api)
 			s.modules = append(s.modules, mod)
 		default:
 			return errors.New(`unsupported systray module`)
@@ -216,8 +149,6 @@ func (s *systray) build(container *gtk.Box) error {
 		s.clientContainer.Append(&modContainer.Widget)
 	}
 
-	s.container.Append(&s.revealBtn.Widget)
-	s.container.Append(&s.revealer.Widget)
 	s.container.Append(&s.clientContainer.Widget)
 
 	container.Append(&s.container.Widget)
@@ -428,18 +359,17 @@ func (s *systray) close(container *gtk.Box) {
 	container.Remove(&s.container.Widget)
 }
 
-func newSystray(panel *panel, cfg *modulev1.Systray) *systray {
+func newSystray(cfg *modulev1.Systray, a *api) *systray {
 	s := &systray{
-		refTracker:    newRefTracker(),
-		panel:         panel,
-		cfg:           cfg,
-		items:         make(map[string]*systrayItem),
-		modules:       make([]module, 0),
-		receivers:     make(map[module]chan<- *eventv1.Event),
-		hidden:        make(chan struct{}),
-		eventCh:       make(chan *eventv1.Event, 10),
-		quitCh:        make(chan struct{}),
-		hideInhibitor: newSystrayInhibitor(cfg.AutoHideDelay.AsDuration()),
+		refTracker: newRefTracker(),
+		api:        a,
+		cfg:        cfg,
+		items:      make(map[string]*systrayItem),
+		modules:    make([]module, 0),
+		receivers:  make(map[module]chan<- *eventv1.Event),
+		eventCh:    make(chan *eventv1.Event, 10),
+		quitCh:     make(chan struct{}),
+		inhibitor:  newSystrayInhibitor(cfg, a),
 	}
 
 	s.AddRef(func() {

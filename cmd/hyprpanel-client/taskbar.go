@@ -14,7 +14,7 @@ import (
 
 type taskbar struct {
 	*refTracker
-	panel           *panel
+	*api
 	cfg             *modulev1.Taskbar
 	eventCh         chan *eventv1.Event
 	quitCh          chan struct{}
@@ -43,7 +43,7 @@ func (t *taskbar) addItem(class string, client *hypripc.Client, pinned bool) err
 	itemCount := len(t.items) + 1
 	t.updateItemScale(itemCount)
 
-	item := newTaskbarItem2(t, class, pinned, client)
+	item := newTaskbarItem(t.cfg, t.api, class, pinned, t.itemScale, t.itemSize, client)
 	if err := item.build(t.inner); err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (t *taskbar) deleteClient(addr string) error {
 }
 
 func (t *taskbar) update() error {
-	hyprclients, err := t.panel.hypr.Clients()
+	hyprclients, err := t.hypr.Clients()
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (t *taskbar) update() error {
 			continue
 		}
 
-		if t.cfg.ActiveMonitorOnly && hyprclient.Monitor != t.panel.currentMonitor.ID {
+		if t.cfg.ActiveMonitorOnly && hyprclient.Monitor != t.currentMonitor.ID {
 			if err := t.deleteClient(hyprclient.Address); err != nil {
 				log.Trace(`Failed deleting client for current monitor`, `module`, style.TaskbarID, `err`, err)
 			}
@@ -162,7 +162,7 @@ func (t *taskbar) update() error {
 			if pinned && pinnedAddr == `` {
 				t.pinned[hyprclient.Class] = hyprclient.Address
 			}
-			if err := item.updateClient(&hyprclient, hyprclient.Address == t.activeClient); err != nil {
+			if err := item.updateClient(&hyprclient, hyprclient.Address == t.activeClient, t.activeClient); err != nil {
 				return err
 			}
 		}
@@ -174,7 +174,7 @@ func (t *taskbar) update() error {
 
 func (t *taskbar) updateItemScale(itemCount int) {
 	var targetSize int
-	if t.panel.orientation == gtk.OrientationHorizontalValue {
+	if t.orientation == gtk.OrientationHorizontalValue {
 		targetSize = t.container.GetAllocatedWidth()
 	} else {
 		targetSize = t.container.GetAllocatedHeight()
@@ -200,18 +200,18 @@ func (t *taskbar) updateItemScale(itemCount int) {
 	if itemScale != scale {
 		t.itemScale = scale
 		for _, item := range t.items {
-			item.updateScale(t.itemScale)
+			item.updateScale(t.itemScale, t.itemSize)
 		}
 	}
 }
 
 func (t *taskbar) build(container *gtk.Box) error {
-	activeWorkspace, err := t.panel.hypr.ActiveWorkspace()
+	activeWorkspace, err := t.hypr.ActiveWorkspace()
 	if err != nil {
 		return err
 	}
 	t.activeWorkspace = activeWorkspace.Name
-	activeWindow, err := t.panel.hypr.ActiveWindow()
+	activeWindow, err := t.hypr.ActiveWindow()
 	if err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func (t *taskbar) build(container *gtk.Box) error {
 	t.container.SetName(style.TaskbarID)
 	t.container.AddCssClass(style.ModuleClass)
 
-	t.inner = gtk.NewBox(t.panel.orientation, 0)
+	t.inner = gtk.NewBox(t.orientation, 0)
 	t.AddRef(t.inner.Unref)
 	t.inner.SetHalign(gtk.AlignStartValue)
 	t.inner.SetValign(gtk.AlignStartValue)
@@ -239,7 +239,7 @@ func (t *taskbar) build(container *gtk.Box) error {
 		unrefCallback(&scaleCb)
 	})
 
-	if t.panel.orientation == gtk.OrientationHorizontalValue {
+	if t.orientation == gtk.OrientationHorizontalValue {
 		t.container.SetHexpand(t.cfg.Expand)
 		t.container.GetHadjustment().ConnectChanged(&scaleCb)
 	} else {
@@ -353,16 +353,16 @@ func (t *taskbar) watch() {
 	}
 }
 
-func newTaskbar2(panel *panel, cfg *modulev1.Taskbar) *taskbar {
+func newTaskbar(cfg *modulev1.Taskbar, a *api) *taskbar {
 	if cfg.PreviewWidth == 0 {
 		cfg.PreviewWidth = 256
 	}
 
 	t := &taskbar{
 		refTracker:  newRefTracker(),
-		panel:       panel,
+		api:         a,
 		cfg:         cfg,
-		itemSize:    panel.cfg.Size,
+		itemSize:    a.panelCfg.Size,
 		itemScale:   1.0,
 		eventCh:     make(chan *eventv1.Event),
 		quitCh:      make(chan struct{}),

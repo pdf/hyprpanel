@@ -15,8 +15,8 @@ import (
 
 type notifications struct {
 	*refTracker
+	*api
 	sync.RWMutex
-	panel   *panel
 	cfg     *modulev1.Notifications
 	eventCh chan *eventv1.Event
 	quitCh  chan struct{}
@@ -56,7 +56,7 @@ func (n *notifications) buildOverlay() error {
 	n.overlay = gtk.NewWindow()
 	n.AddRef(n.overlay.Unref)
 	n.overlay.SetName(style.NotificationsOverlayID)
-	n.overlay.SetApplication(n.panel.app)
+	n.overlay.SetApplication(n.app)
 	n.overlay.SetResizable(false)
 	n.overlay.SetDecorated(false)
 	n.overlay.SetDeletable(false)
@@ -142,7 +142,7 @@ func (n *notifications) deleteNotification(id uint32) {
 		n.overlay.SetVisible(false)
 	}
 
-	if err := n.panel.host.NotificationClosed(item.data.Id, hyprpanelv1.NotificationClosedReason_NOTIFICATION_CLOSED_REASON_DISMISSED); err != nil {
+	if err := n.host.NotificationClosed(item.data.Id, hyprpanelv1.NotificationClosedReason_NOTIFICATION_CLOSED_REASON_DISMISSED); err != nil {
 		log.Debug(`Failed signalling notification closed`, `module`, style.NotificationsID, `err`, err)
 	}
 }
@@ -176,7 +176,7 @@ func (n *notifications) watch() {
 					var cb glib.SourceFunc
 					cb = func(uintptr) bool {
 						defer unrefCallback(&cb)
-						item := newNotificationItem(n, data)
+						item := newNotificationItem(n.cfg, n.api, data, n.deleteNotification)
 						n.addNotification(item)
 						return false
 					}
@@ -219,10 +219,10 @@ func (n *notifications) close(container *gtk.Box) {
 	n.Unref()
 }
 
-func newNotifications(panel *panel, cfg *modulev1.Notifications) *notifications {
+func newNotifications(cfg *modulev1.Notifications, a *api) *notifications {
 	n := &notifications{
 		refTracker: newRefTracker(),
-		panel:      panel,
+		api:        a,
 		cfg:        cfg,
 		eventCh:    make(chan *eventv1.Event, 10),
 		quitCh:     make(chan struct{}),

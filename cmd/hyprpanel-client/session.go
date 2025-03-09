@@ -14,8 +14,8 @@ import (
 
 type session struct {
 	*refTracker
-	panel *panel
-	cfg   *modulev1.Session
+	*api
+	cfg *modulev1.Session
 
 	container *gtk.CenterBox
 	overlay   *gtk.Window
@@ -73,7 +73,7 @@ func (s *session) build(container *gtk.Box) error {
 		logout.Append(&logoutLabel.Widget)
 		logoutCb := func(_ gtk.Button) {
 			s.overlay.Hide()
-			if err := s.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `logount`, Exec: exec}); err != nil {
+			if err := s.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `logount`, Exec: exec}); err != nil {
 				log.Error(`Failed executing logout`, `module`, style.SessionID, `err`, err)
 			}
 		}
@@ -110,7 +110,7 @@ func (s *session) build(container *gtk.Box) error {
 		reboot.Append(&rebootLabel.Widget)
 		rebootCb := func(_ gtk.Button) {
 			s.overlay.Hide()
-			if err := s.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `reboot`, Exec: exec}); err != nil {
+			if err := s.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `reboot`, Exec: exec}); err != nil {
 				log.Error(`Failed executing reboot`, `module`, style.SessionID, `err`, err)
 			}
 		}
@@ -147,7 +147,7 @@ func (s *session) build(container *gtk.Box) error {
 		suspend.Append(&suspendLabel.Widget)
 		suspendCb := func(_ gtk.Button) {
 			s.overlay.Hide()
-			if err := s.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `suspend`, Exec: exec}); err != nil {
+			if err := s.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `suspend`, Exec: exec}); err != nil {
 				log.Error(`Failed executing suspend`, `module`, style.SessionID, `err`, err)
 			}
 		}
@@ -184,7 +184,7 @@ func (s *session) build(container *gtk.Box) error {
 		shutdown.Append(&shutdownLabel.Widget)
 		shutdownCb := func(_ gtk.Button) {
 			s.overlay.Hide()
-			if err := s.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `shutdown`, Exec: exec}); err != nil {
+			if err := s.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `shutdown`, Exec: exec}); err != nil {
 				log.Error(`Failed executing suspend`, `module`, style.SessionID, `err`, err)
 			}
 		}
@@ -244,10 +244,10 @@ func (s *session) close(container *gtk.Box) {
 	s.Unref()
 }
 
-func newSession(panel *panel, cfg *modulev1.Session) *session {
+func newSession(cfg *modulev1.Session, a *api) *session {
 	return &session{
 		refTracker: newRefTracker(),
-		panel:      panel,
+		api:        a,
 		cfg:        cfg,
 	}
 }

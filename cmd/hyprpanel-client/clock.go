@@ -14,7 +14,7 @@ import (
 
 type clock struct {
 	*refTracker
-	panel     *panel
+	*api
 	cfg       *modulev1.Clock
 	container *gtk.Box
 	timeLabel *gtk.Label
@@ -27,7 +27,7 @@ type clock struct {
 }
 
 func (c *clock) build(container *gtk.Box) error {
-	c.container = gtk.NewBox(c.panel.orientation, 0)
+	c.container = gtk.NewBox(c.orientation, 0)
 	now := time.Now()
 	c.timeLabel = gtk.NewLabel(now.Format(c.cfg.TimeFormat))
 	c.dateLabel = gtk.NewLabel(c.cfg.DateFormat)
@@ -35,11 +35,11 @@ func (c *clock) build(container *gtk.Box) error {
 	c.container.Append(&c.timeLabel.Widget)
 	c.container.Append(&c.dateLabel.Widget)
 
-	if c.panel.orientation == gtk.OrientationHorizontalValue {
-		c.container.SetSizeRequest(-1, int(c.panel.cfg.Size))
+	if c.orientation == gtk.OrientationHorizontalValue {
+		c.container.SetSizeRequest(-1, int(c.panelCfg.Size))
 		c.timeLabel.SetMarginEnd(8)
 	} else {
-		c.container.SetSizeRequest(int(c.panel.cfg.Size), -1)
+		c.container.SetSizeRequest(int(c.panelCfg.Size), -1)
 		c.timeLabel.SetMarginBottom(8)
 	}
 
@@ -61,7 +61,7 @@ func (c *clock) build(container *gtk.Box) error {
 	}
 	c.popover.ConnectClosed(&closedCb)
 
-	switch c.panel.cfg.Edge {
+	switch c.panelCfg.Edge {
 	case configv1.Edge_EDGE_TOP:
 		c.popover.SetPosition(gtk.PosBottomValue)
 		c.revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideDownValue)
@@ -151,10 +151,10 @@ func (c *clock) close(container *gtk.Box) {
 	c.Unref()
 }
 
-func newClock(p *panel, cfg *modulev1.Clock) *clock {
+func newClock(cfg *modulev1.Clock, a *api) *clock {
 	c := &clock{
 		refTracker: newRefTracker(),
-		panel:      p,
+		api:        a,
 		cfg:        cfg,
 	}
 

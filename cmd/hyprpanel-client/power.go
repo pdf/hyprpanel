@@ -41,7 +41,7 @@ func (p powerChangeCache) toSlice() powerChangeSort {
 
 type power struct {
 	*refTracker
-	panel   *panel
+	*api
 	cfg     *modulev1.Power
 	cache   powerChangeCache
 	tooltip string
@@ -151,11 +151,11 @@ func (p *power) build(container *gtk.Box) error {
 
 	scrollCb := func(_ gtk.EventControllerScroll, dx, dy float64) bool {
 		if dy < 0 {
-			if err := p.panel.host.BrightnessAdjust(``, eventv1.Direction_DIRECTION_UP); err != nil {
+			if err := p.host.BrightnessAdjust(``, eventv1.Direction_DIRECTION_UP); err != nil {
 				log.Warn(`Brightness adjustment failed`, `module`, style.PowerID, `err`, err)
 			}
 		} else {
-			if err := p.panel.host.BrightnessAdjust(``, eventv1.Direction_DIRECTION_DOWN); err != nil {
+			if err := p.host.BrightnessAdjust(``, eventv1.Direction_DIRECTION_DOWN); err != nil {
 				log.Warn(`Brightness adjustment failed`, `module`, style.PowerID, `err`, err)
 			}
 		}
@@ -228,10 +228,10 @@ func (p *power) close(container *gtk.Box) {
 	}
 }
 
-func newPower(p *panel, cfg *modulev1.Power) *power {
-	a := &power{
+func newPower(cfg *modulev1.Power, a *api) *power {
+	p := &power{
 		refTracker: newRefTracker(),
-		panel:      p,
+		api:        a,
 		cfg:        cfg,
 		cache:      make(powerChangeCache),
 		eventCh:    make(chan *eventv1.Event),
@@ -239,9 +239,9 @@ func newPower(p *panel, cfg *modulev1.Power) *power {
 	}
 
 	p.AddRef(func() {
-		close(a.quitCh)
-		close(a.eventCh)
+		close(p.quitCh)
+		close(p.eventCh)
 	})
 
-	return a
+	return p
 }

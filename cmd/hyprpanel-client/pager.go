@@ -58,7 +58,7 @@ func newSortedWorkspaces(workspaces map[int]*pagerWorkspace) sortedWorkspaces {
 
 type pager struct {
 	*refTracker
-	panel            *panel
+	*api
 	cfg              *modulev1.Pager
 	scale            float64
 	activeClient     string
@@ -81,7 +81,7 @@ func (p *pager) getWorkspace(id int) (*pagerWorkspace, error) {
 }
 
 func (p *pager) addWorkspace(id int, name string, pinned bool) *pagerWorkspace {
-	ws := newPagerWorkspace(p, id, name, pinned)
+	ws := newPagerWorkspace(p.cfg, p.api, id, name, pinned, p.scale)
 	p.workspaces[id] = ws
 	p.sortedWorkspaces = newSortedWorkspaces(p.workspaces)
 	return ws
@@ -126,7 +126,7 @@ func (p *pager) updateClient(client *hypripc.Client) {
 		}
 	}
 	if ws, ok := p.workspaces[client.Workspace.ID]; ok {
-		ws.updateClient(client)
+		ws.updateClient(client, p.activeClient == client.Address)
 	}
 	p.clientWorkspaces[client.Address] = client.Workspace.ID
 }
@@ -141,12 +141,12 @@ func (p *pager) deleteClient(addr string) {
 }
 
 func (p *pager) update() error {
-	spaces, err := p.panel.hypr.Workspaces()
+	spaces, err := p.hypr.Workspaces()
 	if err != nil {
 		return err
 	}
 
-	clients, err := p.panel.hypr.Clients()
+	clients, err := p.hypr.Clients()
 	if err != nil {
 		return err
 	}
@@ -186,19 +186,19 @@ func (p *pager) update() error {
 }
 
 func (p *pager) build(container *gtk.Box) error {
-	activeClient, err := p.panel.hypr.ActiveWindow()
+	activeClient, err := p.hypr.ActiveWindow()
 	if err != nil {
 		return err
 	}
 	p.activeClient = activeClient.Address
 
-	activeWorkspace, err := p.panel.hypr.ActiveWorkspace()
+	activeWorkspace, err := p.hypr.ActiveWorkspace()
 	if err != nil {
 		return err
 	}
 	p.activeWorkspace = activeWorkspace.ID
 
-	p.container = gtk.NewBox(p.panel.orientation, 0)
+	p.container = gtk.NewBox(p.orientation, 0)
 	p.AddRef(p.container.Unref)
 	p.container.SetName(style.PagerID)
 	p.container.AddCssClass(style.ModuleClass)
@@ -267,7 +267,7 @@ func (p *pager) build(container *gtk.Box) error {
 			}
 		}
 
-		if err := p.panel.hypr.Dispatch(hypripc.DispatchWorkspace, target); err != nil {
+		if err := p.hypr.Dispatch(hypripc.DispatchWorkspace, target); err != nil {
 			log.Error(`Failed dispatching workspace switch`, `module`, style.PagerID, `err`, err.Error())
 			return false
 		}
@@ -404,13 +404,13 @@ func (p *pager) watch() {
 	}
 }
 
-func newPager(panel *panel, cfg *modulev1.Pager) *pager {
+func newPager(cfg *modulev1.Pager, a *api) *pager {
 	if cfg.PreviewWidth == 0 {
 		cfg.PreviewWidth = 256
 	}
 	p := &pager{
 		refTracker:       newRefTracker(),
-		panel:            panel,
+		api:              a,
 		cfg:              cfg,
 		workspaces:       make(map[int]*pagerWorkspace),
 		clientWorkspaces: make(map[string]int),
@@ -422,10 +422,10 @@ func newPager(panel *panel, cfg *modulev1.Pager) *pager {
 		close(p.eventCh)
 	})
 
-	if panel.orientation == gtk.OrientationHorizontalValue {
-		p.scale = float64(panel.cfg.Size) / float64(panel.currentMonitor.Height)
+	if p.orientation == gtk.OrientationHorizontalValue {
+		p.scale = float64(p.panelCfg.Size) / float64(p.currentMonitor.Height)
 	} else {
-		p.scale = float64(panel.cfg.Size) / float64(panel.currentMonitor.Width)
+		p.scale = float64(p.panelCfg.Size) / float64(p.currentMonitor.Width)
 	}
 
 	return p

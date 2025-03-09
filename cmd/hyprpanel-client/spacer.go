@@ -8,8 +8,8 @@ import (
 
 type spacer struct {
 	*refTracker
-	panel *panel
-	cfg   *modulev1.Spacer
+	*api
+	cfg *modulev1.Spacer
 
 	container *gtk.Box
 }
@@ -18,11 +18,11 @@ func (s *spacer) build(container *gtk.Box) error {
 	s.container = gtk.NewBox(gtk.OrientationHorizontalValue, 0)
 	s.AddRef(s.container.Unref)
 	s.container.SetName(style.SpacerID)
-	if s.panel.orientation == gtk.OrientationHorizontalValue {
-		s.container.SetSizeRequest(int(s.cfg.Size), int(s.panel.cfg.Size))
+	if s.orientation == gtk.OrientationHorizontalValue {
+		s.container.SetSizeRequest(int(s.cfg.Size), int(s.panelCfg.Size))
 		s.container.SetHexpand(s.cfg.Expand)
 	} else {
-		s.container.SetSizeRequest(int(s.panel.cfg.Size), int(s.cfg.Size))
+		s.container.SetSizeRequest(int(s.panelCfg.Size), int(s.cfg.Size))
 		s.container.SetVexpand(s.cfg.Expand)
 	}
 	container.Append(&s.container.Widget)
@@ -35,10 +35,10 @@ func (s *spacer) close(container *gtk.Box) {
 	s.Unref()
 }
 
-func newSpacer(p *panel, cfg *modulev1.Spacer) *spacer {
+func newSpacer(cfg *modulev1.Spacer, a *api) *spacer {
 	return &spacer{
 		refTracker: newRefTracker(),
-		panel:      p,
+		api:        a,
 		cfg:        cfg,
 	}
 }

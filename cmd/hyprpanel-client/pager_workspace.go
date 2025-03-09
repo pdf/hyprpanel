@@ -12,17 +12,20 @@ import (
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"github.com/jwijenbergh/puregotk/v4/pango"
 	"github.com/pdf/hyprpanel/internal/hypripc"
+	modulev1 "github.com/pdf/hyprpanel/proto/hyprpanel/module/v1"
 	"github.com/pdf/hyprpanel/style"
 )
 
 type pagerWorkspace struct {
 	*refTracker
-	pager   *pager
+	*api
+	cfg     *modulev1.Pager
 	id      int
 	name    string
 	pinned  bool
 	width   int
 	height  int
+	scale   float64
 	live    bool
 	clients map[string]*pagerClient
 
@@ -40,11 +43,11 @@ func (w *pagerWorkspace) rename(name string) {
 	}
 }
 
-func (w *pagerWorkspace) updateClient(hyprclient *hypripc.Client) {
-	width := int(math.Floor(float64(hyprclient.Size[0]) * w.pager.scale * w.pager.panel.currentMonitor.Scale))
-	height := int(math.Floor(float64(hyprclient.Size[1]) * w.pager.scale * w.pager.panel.currentMonitor.Scale))
-	posX := math.Floor(float64(hyprclient.At[0]) * w.pager.scale * w.pager.panel.currentMonitor.Scale)
-	posY := math.Floor(float64(hyprclient.At[1]) * w.pager.scale * w.pager.panel.currentMonitor.Scale)
+func (w *pagerWorkspace) updateClient(hyprclient *hypripc.Client, active bool) {
+	width := int(math.Floor(float64(hyprclient.Size[0]) * w.scale * w.currentMonitor.Scale))
+	height := int(math.Floor(float64(hyprclient.Size[1]) * w.scale * w.currentMonitor.Scale))
+	posX := math.Floor(float64(hyprclient.At[0]) * w.scale * w.currentMonitor.Scale)
+	posY := math.Floor(float64(hyprclient.At[1]) * w.scale * w.currentMonitor.Scale)
 
 	if widthDelta := w.width - int(posX) - width; widthDelta < 0 {
 		width += widthDelta
@@ -73,7 +76,7 @@ func (w *pagerWorkspace) updateClient(hyprclient *hypripc.Client) {
 			return
 		}
 
-		client.update(w.inner, posX, posY, width, height, hyprclient)
+		client.update(w.inner, posX, posY, width, height, hyprclient, active)
 
 		return
 	}
@@ -82,7 +85,7 @@ func (w *pagerWorkspace) updateClient(hyprclient *hypripc.Client) {
 		return
 	}
 
-	client := newPagerClient(w, posX, posY, width, height, hyprclient)
+	client := newPagerClient(w.cfg, w.api, posX, posY, width, height, hyprclient, active)
 	client.build(w.inner)
 	w.clients[hyprclient.Address] = client
 }
@@ -121,12 +124,12 @@ func (w *pagerWorkspace) build(container *gtk.Box) error {
 	w.inner = gtk.NewFixed()
 	w.AddRef(w.inner.Unref)
 
-	if w.pager.panel.orientation == gtk.OrientationHorizontalValue {
-		w.width = int(math.Floor(w.pager.scale*float64(w.pager.panel.currentMonitor.Width))) - 2
-		w.height = int(math.Min(math.Floor(w.pager.scale*float64(w.pager.panel.currentMonitor.Height-int(w.pager.panel.cfg.Size))), float64(w.pager.panel.cfg.Size-2))) - 2
+	if w.orientation == gtk.OrientationHorizontalValue {
+		w.width = int(math.Floor(w.scale*float64(w.currentMonitor.Width))) - 2
+		w.height = int(math.Min(math.Floor(w.scale*float64(w.currentMonitor.Height-int(w.panelCfg.Size))), float64(w.panelCfg.Size-2))) - 2
 	} else {
-		w.width = int(math.Min(math.Floor(w.pager.scale*float64(w.pager.panel.currentMonitor.Width-int(w.pager.panel.cfg.Size))), float64(w.pager.panel.cfg.Size-2))) - 2
-		w.height = int(math.Floor(w.pager.scale*float64(w.pager.panel.currentMonitor.Height))) - 2
+		w.width = int(math.Min(math.Floor(w.scale*float64(w.currentMonitor.Width-int(w.panelCfg.Size))), float64(w.panelCfg.Size-2))) - 2
+		w.height = int(math.Floor(w.scale*float64(w.currentMonitor.Height))) - 2
 	}
 
 	w.container.AddCssClass(style.WorkspaceClass)
@@ -138,7 +141,7 @@ func (w *pagerWorkspace) build(container *gtk.Box) error {
 	clickCb := func(ctrl gtk.GestureClick, _ int, _, _ float64) {
 		switch ctrl.GetCurrentButton() {
 		case uint(gdk.BUTTON_PRIMARY):
-			if err := w.pager.panel.hypr.Dispatch(hypripc.DispatchWorkspace, strconv.Itoa(int(w.id))); err != nil {
+			if err := w.hypr.Dispatch(hypripc.DispatchWorkspace, strconv.Itoa(int(w.id))); err != nil {
 				log.Warn(`Switch workspace failed`, `module`, style.PagerID, `err`, err)
 			}
 		}
@@ -173,10 +176,10 @@ func (w *pagerWorkspace) build(container *gtk.Box) error {
 
 		addr := v.GetString()
 		dispatch := hypripc.DispatchMoveToWorkspaceSilent
-		if w.pager.cfg.FollowWindowOnMove {
+		if w.cfg.FollowWindowOnMove {
 			dispatch = hypripc.DispatchMoveToWorkspace
 		}
-		if err := w.pager.panel.hypr.Dispatch(dispatch, fmt.Sprintf("%d,address:%s", w.id, addr)); err != nil {
+		if err := w.hypr.Dispatch(dispatch, fmt.Sprintf("%d,address:%s", w.id, addr)); err != nil {
 			log.Debug(`Move client to workspace failed`, `module`, style.PagerID, `workspace`, w.id, `window`, addr, `err`, err)
 			return false
 		}
@@ -193,7 +196,7 @@ func (w *pagerWorkspace) build(container *gtk.Box) error {
 	w.inner = gtk.NewFixed()
 	w.container.Append(&w.inner.Widget)
 
-	if w.pager.cfg.EnableWorkspaceNames {
+	if w.cfg.EnableWorkspaceNames {
 		w.label = gtk.NewLabel(w.name)
 		w.label.SetWrap(false)
 		w.label.SetSingleLineMode(true)
@@ -227,13 +230,15 @@ func (w *pagerWorkspace) close(container *gtk.Box) error {
 	return nil
 }
 
-func newPagerWorkspace(p *pager, id int, name string, pinned bool) *pagerWorkspace {
+func newPagerWorkspace(cfg *modulev1.Pager, a *api, id int, name string, pinned bool, scale float64) *pagerWorkspace {
 	return &pagerWorkspace{
 		refTracker: newRefTracker(),
-		pager:      p,
+		api:        a,
+		cfg:        cfg,
 		id:         id,
 		name:       name,
 		pinned:     pinned,
+		scale:      scale,
 		clients:    make(map[string]*pagerClient),
 	}
 }

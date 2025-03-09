@@ -18,19 +18,19 @@ import (
 	"github.com/pdf/hyprpanel/style"
 )
 
-var (
-	errInvalidPixbufArray = errors.New(`invalid pixbuf array`)
-)
+var errInvalidPixbufArray = errors.New(`invalid pixbuf array`)
 
 const systrayActionNamespace = `dbusmenu`
 
 type systrayItem struct {
 	*refTracker
-	tray   *systray
-	data   *eventv1.StatusNotifierValue
-	pinned bool
-	hidden bool
-	quitCh chan struct{}
+	*api
+	cfg       *modulev1.Systray
+	data      *eventv1.StatusNotifierValue
+	inhibitor *systrayInhibitor
+	pinned    bool
+	hidden    bool
+	quitCh    chan struct{}
 
 	menuRefs    *refTracker
 	menu        *gtk.PopoverMenu
@@ -57,19 +57,19 @@ func (i *systrayItem) updateIcon() error {
 	}
 
 	if i.data.Icon.IconName != `` {
-		i.icon, err = createIcon(i.data.Icon.IconName, int(i.tray.cfg.IconSize), false, nil, i.data.Icon.IconThemePath)
+		i.icon, err = createIcon(i.data.Icon.IconName, int(i.cfg.IconSize), false, nil, i.data.Icon.IconThemePath)
 		if err != nil {
 			log.Warn(`Failed creating icon from theme`, `module`, style.SystrayID, `iconName`, i.data.Icon.IconName, `err`, err)
 		}
 	}
 
 	if i.icon == nil && i.data.Icon.IconPixmap != nil {
-		pixbuf, err := pixbufFromSNIData(i.data.Icon.IconPixmap, int(i.tray.cfg.IconSize))
+		pixbuf, err := pixbufFromSNIData(i.data.Icon.IconPixmap, int(i.cfg.IconSize))
 		if err != nil {
 			return fmt.Errorf("failed converting pixbuf data: %w", err)
 		}
 		i.icon = gtk.NewImageFromPixbuf(pixbuf)
-		i.icon.SetPixelSize(int(i.tray.cfg.IconSize))
+		i.icon.SetPixelSize(int(i.cfg.IconSize))
 	}
 
 	if i.icon == nil {
@@ -273,7 +273,7 @@ func (i *systrayItem) buildMenuXMLSection(menuData *eventv1.StatusNotifierValue_
 		}
 
 		cb := func(action gio.SimpleAction, param uintptr) {
-			if err := i.tray.panel.host.SystrayMenuEvent(i.data.BusName, menuData.Id, hyprpanelv1.SystrayMenuEvent_SYSTRAY_MENU_EVENT_CLICKED, nil, time.Now()); err != nil {
+			if err := i.host.SystrayMenuEvent(i.data.BusName, menuData.Id, hyprpanelv1.SystrayMenuEvent_SYSTRAY_MENU_EVENT_CLICKED, nil, time.Now()); err != nil {
 				log.Debug(`Signal systray menu event failed`, `module`, style.SystrayID, `err`, err)
 			}
 		}
@@ -314,8 +314,8 @@ func (i *systrayItem) buildMenuXMLSection(menuData *eventv1.StatusNotifierValue_
 func (i *systrayItem) buildMenu() error {
 	i.menu = gtk.NewPopoverMenuFromModel(&gio.NewMenu().MenuModel)
 	i.menu.SetName(i.data.BusName)
-	if i.tray.cfg.AutoHideDelay.AsDuration() != 0 {
-		hideInhibController := i.tray.hideInhibitor.newController()
+	if i.cfg.AutoHideDelay.AsDuration() != 0 {
+		hideInhibController := i.inhibitor.newController()
 		i.menu.AddController(&hideInhibController.EventController)
 	}
 
@@ -338,7 +338,7 @@ func (i *systrayItem) buildMenu() error {
 		I've no idea why, and it doesn't seem to matter when this is called,
 		but it seems to operate as expected, so leaving as is for now.
 	*/
-	switch i.tray.panel.cfg.Edge {
+	switch i.panelCfg.Edge {
 	case configv1.Edge_EDGE_TOP:
 		i.menu.SetPosition(gtk.PosBottomValue)
 	case configv1.Edge_EDGE_RIGHT:
@@ -358,7 +358,7 @@ func (i *systrayItem) close(container *gtk.FlowBox) {
 }
 
 func (i *systrayItem) autoHide(container *gtk.FlowBox, hiddenContainer *gtk.FlowBox) {
-	time.AfterFunc(i.tray.cfg.AutoHideDelay.AsDuration(), func() {
+	time.AfterFunc(i.cfg.AutoHideDelay.AsDuration(), func() {
 		var moveCb glib.SourceFunc
 		moveCb = func(uintptr) bool {
 			defer unrefCallback(&moveCb)
@@ -377,7 +377,7 @@ func (i *systrayItem) autoHide(container *gtk.FlowBox, hiddenContainer *gtk.Flow
 
 func (i *systrayItem) updateStatus(container *gtk.FlowBox, hiddenContainer *gtk.FlowBox) {
 	if !i.pinned {
-		for _, autoHide := range i.tray.cfg.AutoHideStatuses {
+		for _, autoHide := range i.cfg.AutoHideStatuses {
 			if i.data.Status == autoHide {
 				if i.data.Status != modulev1.Systray_STATUS_PASSIVE {
 					i.setHidden(false, container, hiddenContainer)
@@ -389,7 +389,6 @@ func (i *systrayItem) updateStatus(container *gtk.FlowBox, hiddenContainer *gtk.
 	}
 
 	i.setHidden(false, container, hiddenContainer)
-
 }
 
 func (i *systrayItem) setHidden(hidden bool, container *gtk.FlowBox, hiddenContainer *gtk.FlowBox) {
@@ -419,7 +418,7 @@ func (i *systrayItem) setHidden(hidden bool, container *gtk.FlowBox, hiddenConta
 	i.revealer.SetRevealChild(false)
 
 	i.hidden = hidden
-	i.tray.updateRevealBtn()
+	i.inhibitor.updateRevealBtn()
 }
 
 func (i *systrayItem) build(container *gtk.FlowBox, hiddenContainer *gtk.FlowBox) error {
@@ -432,7 +431,7 @@ func (i *systrayItem) build(container *gtk.FlowBox, hiddenContainer *gtk.FlowBox
 	i.revealer = gtk.NewRevealer()
 	i.AddRef(i.revealer.Unref)
 	i.revealer.SetRevealChild(false)
-	if i.tray.panel.orientation == gtk.OrientationHorizontalValue {
+	if i.orientation == gtk.OrientationHorizontalValue {
 		i.revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideLeftValue)
 	} else {
 		i.revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideUpValue)
@@ -458,23 +457,23 @@ func (i *systrayItem) build(container *gtk.FlowBox, hiddenContainer *gtk.FlowBox
 		button := ctrl.GetCurrentButton()
 		switch int(button) {
 		case gdk.BUTTON_PRIMARY:
-			if err := i.tray.panel.host.SystrayActivate(i.data.BusName, int32(x), int32(y)); err != nil {
+			if err := i.host.SystrayActivate(i.data.BusName, int32(x), int32(y)); err != nil {
 				log.Warn(`Activate item failed`, `module`, style.SystrayID, `busName`, i.data.BusName, `err`, err)
 			}
 		case gdk.BUTTON_MIDDLE:
-			if err := i.tray.panel.host.SystraySecondaryActivate(i.data.BusName, int32(x), int32(y)); err != nil {
+			if err := i.host.SystraySecondaryActivate(i.data.BusName, int32(x), int32(y)); err != nil {
 				log.Warn(`SecondaryActivate item failed`, `module`, style.SystrayID, `busName`, i.data.BusName, `err`, err)
 			}
 		case gdk.BUTTON_SECONDARY:
 			if i.menu != nil {
-				if err := i.tray.panel.host.SystraySecondaryActivate(i.data.BusName, int32(x), int32(y)); err != nil {
+				if err := i.host.SystraySecondaryActivate(i.data.BusName, int32(x), int32(y)); err != nil {
 					log.Warn(`SecondaryActivate item failed`, `module`, style.SystrayID, `busName`, i.data.BusName, `err`, err)
 				}
 
 				i.menu.Popup()
 				return
 			}
-			if err := i.tray.panel.host.SystrayMenuContextActivate(i.data.BusName, int32(x), int32(y)); err != nil {
+			if err := i.host.SystrayMenuContextActivate(i.data.BusName, int32(x), int32(y)); err != nil {
 				log.Warn(`MenuContextActivate item failed`, `module`, style.SystrayID, `busName`, i.data.BusName, `err`, err)
 			}
 		default:
@@ -489,12 +488,12 @@ func (i *systrayItem) build(container *gtk.FlowBox, hiddenContainer *gtk.FlowBox
 	scrollController := gtk.NewEventControllerScroll(gtk.EventControllerScrollBothAxesValue)
 	scrollCb := func(ctrl gtk.EventControllerScroll, dx, dy float64) bool {
 		if dy != 0 {
-			if err := i.tray.panel.host.SystrayScroll(i.data.BusName, int32(dy), hyprpanelv1.SystrayScrollOrientation_SYSTRAY_SCROLL_ORIENTATION_VERTICAL); err != nil {
+			if err := i.host.SystrayScroll(i.data.BusName, int32(dy), hyprpanelv1.SystrayScrollOrientation_SYSTRAY_SCROLL_ORIENTATION_VERTICAL); err != nil {
 				log.Warn(`Scroll item failed`, `module`, style.SystrayID, `busName`, i.data.BusName, `err`, err)
 			}
 		}
 		if dx != 0 {
-			if err := i.tray.panel.host.SystrayScroll(i.data.BusName, int32(dx), hyprpanelv1.SystrayScrollOrientation_SYSTRAY_SCROLL_ORIENTATION_HORIZONTAL); err != nil {
+			if err := i.host.SystrayScroll(i.data.BusName, int32(dx), hyprpanelv1.SystrayScrollOrientation_SYSTRAY_SCROLL_ORIENTATION_HORIZONTAL); err != nil {
 				log.Warn(`Scroll item failed`, `module`, style.SystrayID, `busName`, i.data.BusName, `err`, err)
 			}
 		}
@@ -551,9 +550,9 @@ func (i *systrayItem) Unref() {
 	i.refTracker.Unref()
 }
 
-func newSystrayItem(tray *systray, data *eventv1.StatusNotifierValue) *systrayItem {
+func newSystrayItem(cfg *modulev1.Systray, a *api, inhibitor *systrayInhibitor, data *eventv1.StatusNotifierValue) *systrayItem {
 	persistent := false
-	for _, name := range tray.cfg.Pinned {
+	for _, name := range cfg.Pinned {
 		if data.Id == name {
 			persistent = true
 			break
@@ -561,7 +560,9 @@ func newSystrayItem(tray *systray, data *eventv1.StatusNotifierValue) *systrayIt
 	}
 	return &systrayItem{
 		refTracker: newRefTracker(),
-		tray:       tray,
+		api:        a,
+		cfg:        cfg,
+		inhibitor:  inhibitor,
 		data:       data,
 		pinned:     persistent,
 		quitCh:     make(chan struct{}),

@@ -5,14 +5,16 @@ import (
 	"github.com/jwijenbergh/puregotk/v4/gobject"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"github.com/pdf/hyprpanel/internal/hypripc"
-	"github.com/pdf/hyprpanel/internal/panelplugin"
+	modulev1 "github.com/pdf/hyprpanel/proto/hyprpanel/module/v1"
 	hyprpanelv1 "github.com/pdf/hyprpanel/proto/hyprpanel/v1"
 	"github.com/pdf/hyprpanel/style"
 )
 
 type pagerClient struct {
 	*refTracker
-	ws      *pagerWorkspace
+	*api
+	cfg     *modulev1.Pager
+	active  bool
 	posX    float64
 	posY    float64
 	width   int
@@ -28,24 +30,24 @@ type pagerClient struct {
 func (c *pagerClient) updateIcon() {
 	var err error
 	if c.appInfo == nil {
-		c.appInfo, err = c.ws.pager.panel.host.FindApplication(c.client.Class)
+		c.appInfo, err = c.host.FindApplication(c.client.Class)
 		if err != nil || c.appInfo == nil {
 			return
 		}
 	}
 
 	if c.icon == nil {
-		if c.width <= int(c.ws.pager.cfg.IconSize) || c.height <= int(c.ws.pager.cfg.IconSize) {
+		if c.width <= int(c.cfg.IconSize) || c.height <= int(c.cfg.IconSize) {
 			return
 		}
-		if c.icon, err = createIcon(c.appInfo.Icon, int(c.ws.pager.cfg.IconSize), false, nil); err != nil {
+		if c.icon, err = createIcon(c.appInfo.Icon, int(c.cfg.IconSize), false, nil); err != nil {
 			return
 		}
 		c.container.SetCenterWidget(&c.icon.Widget)
 		return
 	}
 
-	if c.width <= int(c.ws.pager.cfg.IconSize) || c.height <= int(c.ws.pager.cfg.IconSize) {
+	if c.width <= int(c.cfg.IconSize) || c.height <= int(c.cfg.IconSize) {
 		c.container.SetCenterWidget(&gtk.Widget{})
 		icon := c.icon
 		defer icon.Unref()
@@ -53,11 +55,12 @@ func (c *pagerClient) updateIcon() {
 	}
 }
 
-func (c *pagerClient) update(container *gtk.Fixed, posX, posY float64, width, height int, client *hypripc.Client) {
+func (c *pagerClient) update(container *gtk.Fixed, posX, posY float64, width, height int, client *hypripc.Client, active bool) {
 	if c.client != client {
 		c.client = client
 	}
-	if c.client.Address == c.ws.pager.activeClient {
+	c.active = active
+	if c.active {
 		if !c.container.HasCssClass(style.ActiveClass) {
 			c.container.AddCssClass(style.ActiveClass)
 		}
@@ -83,10 +86,6 @@ func (c *pagerClient) update(container *gtk.Fixed, posX, posY float64, width, he
 	}
 }
 
-func (c *pagerClient) host() panelplugin.Host {
-	return c.ws.pager.panel.host
-}
-
 func (c *pagerClient) clientTitle() string {
 	return c.title
 }
@@ -110,8 +109,8 @@ func (c *pagerClient) build(container *gtk.Fixed) {
 	c.container.SetMarginBottom(1)
 	c.container.SetHasTooltip(true)
 
-	previewHeight := int(c.ws.pager.cfg.PreviewWidth * 9 / 16)
-	tooltipCb := tooltipPreview(c, int(c.ws.pager.cfg.PreviewWidth), previewHeight)
+	previewHeight := int(c.cfg.PreviewWidth * 9 / 16)
+	tooltipCb := tooltipPreview(c, int(c.cfg.PreviewWidth), previewHeight)
 	c.AddRef(func() { unrefCallback(&tooltipCb) })
 	c.container.ConnectQueryTooltip(&tooltipCb)
 
@@ -135,7 +134,7 @@ func (c *pagerClient) build(container *gtk.Fixed) {
 	c.container.AddController(&dragSource.EventController)
 
 	c.updateIcon()
-	c.update(container, c.posX, c.posY, c.width, c.height, c.client)
+	c.update(container, c.posX, c.posY, c.width, c.height, c.client, c.active)
 
 	container.Put(&c.container.Widget, c.posX, c.posY)
 }
@@ -145,10 +144,12 @@ func (c *pagerClient) close(container *gtk.Fixed) {
 	container.Remove(&c.container.Widget)
 }
 
-func newPagerClient(ws *pagerWorkspace, posX, posY float64, width, height int, client *hypripc.Client) *pagerClient {
+func newPagerClient(cfg *modulev1.Pager, a *api, posX, posY float64, width, height int, client *hypripc.Client, active bool) *pagerClient {
 	return &pagerClient{
 		refTracker: newRefTracker(),
-		ws:         ws,
+		api:        a,
+		cfg:        cfg,
+		active:     active,
 		posX:       posX,
 		posY:       posY,
 		width:      width,

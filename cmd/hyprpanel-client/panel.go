@@ -23,21 +23,28 @@ const appName = `com.c0dedbad.hyprpanel.client`
 
 var errNotFound = errors.New(`not found`)
 
+type api struct {
+	host           panelplugin.Host
+	hypr           *hypripc.HyprIPC
+	orientation    gtk.Orientation
+	currentMonitor *hypripc.Monitor
+	panelCfg       *configv1.Panel
+	app            *gtk.Application
+}
+
+func (a *api) pluginHost() panelplugin.Host {
+	return a.host
+}
+
 type panel struct {
 	*refTracker
+	*api
 
-	host       panelplugin.Host
 	id         string
-	cfg        *configv1.Panel
 	stylesheet []byte
 
-	hypr *hypripc.HyprIPC
-
-	orientation       gtk.Orientation
-	currentMonitor    *hypripc.Monitor
 	currentGDKMonitor *gdk.Monitor
 
-	app       *gtk.Application
 	win       *gtk.Window
 	container *gtk.Box
 
@@ -51,9 +58,9 @@ type panel struct {
 func (p *panel) Init(host panelplugin.Host, id string, loglevel configv1.LogLevel, cfg *configv1.Panel, stylesheet []byte) error {
 	defer close(p.readyCh)
 	log.SetLevel(hclog.Level(loglevel))
-	p.host = host
+	p.api.host = host
 	p.id = id
-	p.cfg = cfg
+	p.panelCfg = cfg
 	p.stylesheet = stylesheet
 
 	switch cfg.Edge {
@@ -102,8 +109,8 @@ func (p *panel) initWindow() error {
 
 	p.win = gtk.NewWindow()
 	p.AddRef(p.win.Unref)
-	if p.cfg.Id != `` {
-		p.win.SetName(p.cfg.Id)
+	if p.panelCfg.Id != `` {
+		p.win.SetName(p.panelCfg.Id)
 	}
 	p.win.SetName(style.PanelID)
 	p.win.SetApplication(p.app)
@@ -112,9 +119,9 @@ func (p *panel) initWindow() error {
 	p.win.SetDeletable(false)
 
 	if p.orientation == gtk.OrientationHorizontalValue {
-		p.win.SetDefaultSize(-1, int(p.cfg.Size))
+		p.win.SetDefaultSize(-1, int(p.panelCfg.Size))
 	} else {
-		p.win.SetDefaultSize(int(p.cfg.Size), -1)
+		p.win.SetDefaultSize(int(p.panelCfg.Size), -1)
 	}
 	gtk4layershell.InitForWindow(p.win)
 
@@ -122,10 +129,10 @@ func (p *panel) initWindow() error {
 	if err != nil {
 		return err
 	}
-	if p.cfg.Monitor != `` {
+	if p.panelCfg.Monitor != `` {
 		for _, mon := range hyprMonitors {
 			mon := mon
-			if mon.Name == p.cfg.Monitor {
+			if mon.Name == p.panelCfg.Monitor {
 				p.currentMonitor = &mon
 				break
 			}
@@ -144,7 +151,7 @@ func (p *panel) initWindow() error {
 	gtk4layershell.SetNamespace(p.win, appName)
 	gtk4layershell.AutoExclusiveZoneEnable(p.win)
 
-	switch p.cfg.Edge {
+	switch p.panelCfg.Edge {
 	case configv1.Edge_EDGE_TOP:
 		gtk4layershell.SetAnchor(p.win, gtk4layershell.LayerShellEdgeTop, true)
 		gtk4layershell.SetAnchor(p.win, gtk4layershell.LayerShellEdgeLeft, true)
@@ -193,7 +200,7 @@ func (p *panel) build() error {
 	panelMain.AddCssClass(panelCSSClass)
 	p.win.SetChild(&panelMain.Widget)
 
-	switch p.cfg.Edge {
+	switch p.panelCfg.Edge {
 	case configv1.Edge_EDGE_TOP:
 		panelMain.AddCssClass(style.TopClass)
 	case configv1.Edge_EDGE_RIGHT:
@@ -208,48 +215,48 @@ func (p *panel) build() error {
 	p.AddRef(p.container.Unref)
 	panelMain.Append(&p.container.Widget)
 
-	for _, modCfg := range p.cfg.Modules {
+	for _, modCfg := range p.panelCfg.Modules {
 		modCfg := modCfg
 		switch modCfg.Kind.(type) {
 		case *modulev1.Module_Pager:
 			cfg := modCfg.GetPager()
-			mod := newPager(p, cfg)
+			mod := newPager(cfg, p.api)
 			p.modules = append(p.modules, mod)
 		case *modulev1.Module_Taskbar:
 			cfg := modCfg.GetTaskbar()
-			mod := newTaskbar2(p, cfg)
+			mod := newTaskbar(cfg, p.api)
 			p.modules = append(p.modules, mod)
 		case *modulev1.Module_Systray:
 			cfg := modCfg.GetSystray()
-			mod := newSystray(p, cfg)
+			mod := newSystray(cfg, p.api)
 			p.modules = append(p.modules, mod)
 		case *modulev1.Module_Notifications:
 			cfg := modCfg.GetNotifications()
-			mod := newNotifications(p, cfg)
+			mod := newNotifications(cfg, p.api)
 			p.modules = append(p.modules, mod)
 		case *modulev1.Module_Hud:
 			cfg := modCfg.GetHud()
-			mod := newHud(p, cfg)
+			mod := newHud(cfg, p.api)
 			p.modules = append(p.modules, mod)
 		case *modulev1.Module_Audio:
 			cfg := modCfg.GetAudio()
-			mod := newAudio(p, cfg)
+			mod := newAudio(cfg, p.api)
 			p.modules = append(p.modules, mod)
 		case *modulev1.Module_Power:
 			cfg := modCfg.GetPower()
-			mod := newPower(p, cfg)
+			mod := newPower(cfg, p.api)
 			p.modules = append(p.modules, mod)
 		case *modulev1.Module_Clock:
 			cfg := modCfg.GetClock()
-			mod := newClock(p, cfg)
+			mod := newClock(cfg, p.api)
 			p.modules = append(p.modules, mod)
 		case *modulev1.Module_Session:
 			cfg := modCfg.GetSession()
-			mod := newSession(p, cfg)
+			mod := newSession(cfg, p.api)
 			p.modules = append(p.modules, mod)
 		case *modulev1.Module_Spacer:
 			cfg := modCfg.GetSpacer()
-			mod := newSpacer(p, cfg)
+			mod := newSpacer(cfg, p.api)
 			p.modules = append(p.modules, mod)
 		default:
 			log.Warn(`Unhandled module config`, `module`, modCfg)
@@ -302,13 +309,15 @@ func newPanel() (*panel, error) {
 
 	p := &panel{
 		refTracker: newRefTracker(),
-		hypr:       hypr,
-		app:        gtk.NewApplication(appName, gio.GApplicationFlagsNoneValue),
-		modules:    make([]module, 0),
-		eventCh:    make(chan *eventv1.Event, 10),
-		receivers:  make(map[module]chan<- *eventv1.Event),
-		readyCh:    make(chan struct{}),
-		quitCh:     make(chan struct{}),
+		api: &api{
+			hypr: hypr,
+			app:  gtk.NewApplication(appName, gio.GApplicationFlagsNoneValue),
+		},
+		modules:   make([]module, 0),
+		eventCh:   make(chan *eventv1.Event, 10),
+		receivers: make(map[module]chan<- *eventv1.Event),
+		readyCh:   make(chan struct{}),
+		quitCh:    make(chan struct{}),
 	}
 	p.AddRef(p.app.Unref)
 	p.AddRef(func() {

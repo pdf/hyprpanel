@@ -21,7 +21,7 @@ const (
 
 type audio struct {
 	*refTracker
-	panel                *panel
+	*api
 	cfg                  *modulev1.Audio
 	container            *gtk.CenterBox
 	inner                *gtk.Fixed
@@ -184,11 +184,11 @@ func (a *audio) build(container *gtk.Box) error {
 
 	scrollCb := func(_ gtk.EventControllerScroll, dx, dy float64) bool {
 		if dy < 0 {
-			if err := a.panel.host.AudioSinkVolumeAdjust(a.defaultSinkID, eventv1.Direction_DIRECTION_UP); err != nil {
+			if err := a.host.AudioSinkVolumeAdjust(a.defaultSinkID, eventv1.Direction_DIRECTION_UP); err != nil {
 				log.Warn(`Volume adjustment failed`, `module`, style.AudioID, `err`, err)
 			}
 		} else {
-			if err := a.panel.host.AudioSinkVolumeAdjust(a.defaultSinkID, eventv1.Direction_DIRECTION_DOWN); err != nil {
+			if err := a.host.AudioSinkVolumeAdjust(a.defaultSinkID, eventv1.Direction_DIRECTION_DOWN); err != nil {
 				log.Warn(`Volume adjustment failed`, `module`, style.AudioID, `err`, err)
 			}
 		}
@@ -214,15 +214,15 @@ func (a *audio) build(container *gtk.Box) error {
 	clickCb := func(ctrl gtk.GestureClick, nPress int, x, y float64) {
 		switch ctrl.GetCurrentButton() {
 		case uint(gdk.BUTTON_PRIMARY):
-			if err := a.panel.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `mixer`, Exec: exec}); err != nil {
+			if err := a.host.Exec(&hyprpanelv1.AppInfo_Action{Name: `mixer`, Exec: exec}); err != nil {
 				log.Warn(`Failed launching application`, `module`, style.AudioID, `cmd`, a.cfg.CommandMixer, `err`, err)
 			}
 		case uint(gdk.BUTTON_SECONDARY):
-			if err := a.panel.host.AudioSinkMuteToggle(a.defaultSinkID); err != nil {
+			if err := a.host.AudioSinkMuteToggle(a.defaultSinkID); err != nil {
 				log.Warn(`Mute toggle failed`, `module`, style.AudioID, `err`, err)
 			}
 		case uint(gdk.BUTTON_MIDDLE):
-			if err := a.panel.host.AudioSourceMuteToggle(a.defaultSourceID); err != nil {
+			if err := a.host.AudioSourceMuteToggle(a.defaultSourceID); err != nil {
 				log.Warn(`Mute toggle failed`, `module`, style.AudioID, `err`, err)
 			}
 		}
@@ -340,19 +340,19 @@ func (a *audio) close(container *gtk.Box) {
 	a.sinkIcon.Unref()
 }
 
-func newAudio(p *panel, cfg *modulev1.Audio) *audio {
-	a := &audio{
+func newAudio(cfg *modulev1.Audio, a *api) *audio {
+	aud := &audio{
 		refTracker: newRefTracker(),
-		panel:      p,
+		api:        a,
 		cfg:        cfg,
 		eventCh:    make(chan *eventv1.Event),
 		quitCh:     make(chan struct{}),
 	}
 
-	p.AddRef(func() {
-		close(a.quitCh)
-		close(a.eventCh)
+	aud.AddRef(func() {
+		close(aud.quitCh)
+		close(aud.eventCh)
 	})
 
-	return a
+	return aud
 }

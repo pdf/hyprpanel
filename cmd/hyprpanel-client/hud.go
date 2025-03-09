@@ -17,7 +17,7 @@ import (
 
 type hud struct {
 	*refTracker
-	panel   *panel
+	*api
 	cfg     *modulev1.Hud
 	eventCh chan *eventv1.Event
 	quitCh  chan struct{}
@@ -262,7 +262,7 @@ func (h *hud) buildOverlay() error {
 	h.overlay.SetVisible(false)
 	h.overlay.SetName(style.HudID)
 	h.overlay.SetName(style.HudOverlayID)
-	h.overlay.SetApplication(h.panel.app)
+	h.overlay.SetApplication(h.app)
 	h.overlay.SetResizable(false)
 	h.overlay.SetDecorated(false)
 	h.overlay.SetDeletable(false)
@@ -391,10 +391,10 @@ func (h *hud) close(_ *gtk.Box) {
 	}
 }
 
-func newHud(panel *panel, cfg *modulev1.Hud) *hud {
+func newHud(cfg *modulev1.Hud, a *api) *hud {
 	h := &hud{
 		refTracker:     newRefTracker(),
-		panel:          panel,
+		api:            a,
 		cfg:            cfg,
 		eventCh:        make(chan *eventv1.Event, 10),
 		quitCh:         make(chan struct{}),

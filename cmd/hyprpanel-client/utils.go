@@ -199,7 +199,7 @@ type tooltipPreviewer interface {
 	clientAddress() string
 	clientTitle() string
 	shouldPreview() bool
-	host() panelplugin.Host
+	pluginHost() panelplugin.Host
 }
 
 func tooltipPreview(target tooltipPreviewer, width, height int) func(widget gtk.Widget, x int, y int, keyboardMod bool, tooltipPtr uintptr) bool {
@@ -240,7 +240,7 @@ func tooltipPreview(target tooltipPreviewer, width, height int) func(widget gtk.
 			log.Warn(`failed to parse client address`, `err`, err)
 			return true
 		}
-		img, err := target.host().CaptureFrame(addr, int32(width), int32(height))
+		img, err := target.pluginHost().CaptureFrame(addr, int32(width), int32(height))
 		if err != nil {
 			log.Warn(`failed to capture frame`, `err`, err)
 			return true

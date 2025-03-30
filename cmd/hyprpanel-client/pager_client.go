@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/jwijenbergh/puregotk/v4/gdk"
 	"github.com/jwijenbergh/puregotk/v4/gobject"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
@@ -88,6 +90,14 @@ func (c *pagerClient) update(container *gtk.Fixed, posX, posY float64, width, he
 
 func (c *pagerClient) clientTitle() string {
 	return c.title
+}
+
+func (c *pagerClient) clientSubtitle() string {
+	mem, err := memKb(int(c.client.Pid))
+	if err != nil {
+		return ``
+	}
+	return fmt.Sprintf("Memory: %.1f MB", float64(mem)/1024.0)
 }
 
 func (c *pagerClient) clientAddress() string {

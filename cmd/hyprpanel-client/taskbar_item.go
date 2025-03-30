@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 	"time"
@@ -475,6 +476,18 @@ func (i *taskbarItem) clientTitle() string {
 	}
 
 	return i.appInfo.Name
+}
+
+func (i *taskbarItem) clientSubtitle() string {
+	c, ok := i.clients[i.activeClient]
+	if !ok {
+		return ``
+	}
+	mem, err := memKb(int(c.Pid))
+	if err != nil {
+		return ``
+	}
+	return fmt.Sprintf("Memory: %.1f MB", float64(mem)/1024.0)
 }
 
 func (i *taskbarItem) clientAddress() string {

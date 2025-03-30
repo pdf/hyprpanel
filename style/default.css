@@ -212,3 +212,8 @@ flowboxchild {
 	margin: 8px;
 	padding: 0;
 }
+
+.tooltipSubtitle {
+	background-color: alpha(@NotificationBackground, 0.7);
+	border-radius: 4px;
+}

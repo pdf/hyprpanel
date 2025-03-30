@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"math"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +16,7 @@ import (
 	"github.com/jwijenbergh/puregotk/v4/gdkpixbuf"
 	"github.com/jwijenbergh/puregotk/v4/glib"
 	"github.com/jwijenbergh/puregotk/v4/gtk"
+	"github.com/jwijenbergh/puregotk/v4/pango"
 	"github.com/pdf/hyprpanel/internal/hypripc"
 	"github.com/pdf/hyprpanel/internal/panelplugin"
 	eventv1 "github.com/pdf/hyprpanel/proto/hyprpanel/event/v1"
@@ -20,7 +24,10 @@ import (
 	"github.com/pdf/hyprpanel/style"
 )
 
-const tooltipDebounceTime = 500 * time.Millisecond
+const (
+	tooltipDebounceTime = 500 * time.Millisecond
+	tooltipMaxChars     = 40
+)
 
 type refTracker struct {
 	mu   sync.Mutex
@@ -198,6 +205,7 @@ func unrefCallback(fnPtr any) {
 type tooltipPreviewer interface {
 	clientAddress() string
 	clientTitle() string
+	clientSubtitle() string
 	shouldPreview() bool
 	pluginHost() panelplugin.Host
 }
@@ -228,6 +236,8 @@ func tooltipPreview(target tooltipPreviewer, width, height int) func(widget gtk.
 		lastTooltip = &container.Widget
 
 		title := gtk.NewLabel(target.clientTitle())
+		title.SetEllipsize(pango.EllipsizeMiddleValue)
+		title.SetMaxWidthChars(tooltipMaxChars)
 		container.Append(&title.Widget)
 		title.Unref()
 
@@ -257,6 +267,44 @@ func tooltipPreview(target tooltipPreviewer, width, height int) func(widget gtk.
 		container.Append(&image.Widget)
 		image.Unref()
 
+		subtitleText := target.clientSubtitle()
+		if len(subtitleText) > 0 {
+			subtitleContainer := gtk.NewBox(gtk.OrientationVerticalValue, 0)
+			subtitleContainer.AddCssClass(style.TooltipSubtitleClass)
+			subtitle := gtk.NewLabel(target.clientSubtitle())
+			subtitleContainer.Append(&subtitle.Widget)
+			subtitle.Unref()
+			container.Append(&subtitleContainer.Widget)
+			subtitleContainer.Unref()
+		}
+
 		return true
 	}
+}
+
+func memKb(pid int) (int, error) {
+	f, err := os.Open(filepath.Join(`/proc`, strconv.Itoa(pid), `status`))
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		if strings.HasPrefix(s.Text(), `VmRSS:`) {
+			parts := strings.Fields(s.Text())
+			if len(parts) < 3 {
+				return 0, fmt.Errorf(`invalid VmRSS format`)
+			}
+			mem, err := strconv.Atoi(parts[1])
+			if err != nil {
+				return 0, fmt.Errorf(`invalid VmRSS value`)
+			}
+			return mem, nil
+		}
+	}
+	if err := s.Err(); err != nil {
+		return 0, err
+	}
+
+	return 0, fmt.Errorf(`VmRSS not found`)
 }

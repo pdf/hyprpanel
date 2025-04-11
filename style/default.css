@@ -57,14 +57,17 @@ flowboxchild {
 	background-color: alpha(@ModuleBackground, 0.3);
 	border: @Border 1px solid;
 	border-radius: 4px;
+	transition: background-color 300ms ease-in-out, border 300ms ease-in-out;
 }
 
 #pager .workspace.live {
 	background-color: alpha(@Highlight, 0.2);
+	transition: background-color 300ms ease-in-out;
 }
 
 #pager .workspace.active {
 	border: alpha(@Highlight, 0.8) 1px solid;
+	transition: border 300ms ease-in-out;
 }
 
 #pager .workspace .workspaceLabel {
@@ -76,26 +79,37 @@ flowboxchild {
 	border: alpha(@Highlight, 0.4) 1px solid;
 	background-color: alpha(@Highlight, 0.3);
 	border-radius: 4px;
+	transition: background-color 300ms ease-in-out, border 300ms ease-in-out;
 }
 
 #pager .workspace .client.active {
 	border: alpha(@Highlight, 0.9) 1px solid;
 	background-color: alpha(@Highlight, 0.7);
+	transition: background-color 300ms ease-in-out, border 300ms ease-in-out;
 }
 
 #taskbar .client {
 	border: rgba(0, 0, 0, 0) 1px solid;
 	border-radius: 4px;
+	transition: background-color 150ms ease-in-out, border 150ms ease-in-out;
 }
 
 #taskbar .client.hover {
 	border: alpha(@Highlight, 0.3) 1px solid;
 	background-color: alpha(@Highlight, 0.3);
+	transition: background-color 150ms ease-in-out, border 150ms ease-in-out;
 }
 
 #taskbar .client.active {
 	border: alpha(@Highlight, 0.6) 1px solid;
 	background-color: alpha(@Highlight, 0.6);
+	transition: background-color 150ms ease-in-out, border 150ms ease-in-out;
+}
+
+#taskbar .indicator {
+	border: lighter(alpha(@Indicator, 0.9)) 1px solid;
+	border-radius: 2px;
+	background-color: @Indicator;
 }
 
 /* Text sizing in GTK sucks, let the user deal with it */
@@ -121,20 +135,16 @@ flowboxchild {
 	background-color: rgba(0, 0, 0, 0);
 }
 
-#taskbar .indicator {
-	border: lighter(alpha(@Indicator, 0.9)) 1px solid;
-	border-radius: 2px;
-	background-color: @Indicator;
-}
-
 #audio .overlay {
 	border: alpha(@Highlight, 0.90) 2px solid;
 	border-radius: 2px;
 	background-color: alpha(@PanelBackground, 0.95);
+	transition: border 300ms ease-in-out;
 }
 
 #audio .disabled {
 	border: alpha(@Border, 0.90) 2px solid;
+	transition: border 300ms ease-in-out;
 }
 
 #notificationsOverlay {

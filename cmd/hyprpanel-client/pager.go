@@ -306,7 +306,9 @@ func (p *pager) events() chan<- *eventv1.Event {
 func (p *pager) close(container *gtk.Box) {
 	defer p.Unref()
 	for _, ws := range p.workspaces {
-		ws.close(p.container)
+		if err := ws.close(p.container); err != nil {
+			log.Debug(`Failed closing workspace`, `module`, style.PagerID, `err`, err)
+		}
 	}
 	container.Remove(&p.container.Widget)
 }

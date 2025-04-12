@@ -206,9 +206,13 @@ func (h *HyprIPC) send(args ...string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer ctrl.Close()
+	defer func() {
+		if err := ctrl.Close(); err != nil {
+			h.log.Error(`failed closing hyprland IPC connection`, `err`, err)
+		}
+	}()
 
-	if _, err := ctrl.Write([]byte(fmt.Sprintf("j/%s", strings.Join(args, ` `)))); err != nil {
+	if _, err := fmt.Fprintf(ctrl, "j/%s", strings.Join(args, ` `)); err != nil {
 		return nil, err
 	}
 
@@ -254,7 +258,9 @@ func (h *HyprIPC) StartEvents() {
 // Close terminates all connections, event loops, and closes all subscriptions.
 func (h *HyprIPC) Close() {
 	close(h.quitCh)
-	h.evtConn.Close()
+	if err := h.evtConn.Close(); err != nil {
+		h.log.Error(`failed closing hyprland IPC connection`, `err`, err)
+	}
 	close(h.evtBus)
 }
 

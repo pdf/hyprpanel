@@ -194,7 +194,11 @@ func newAppInfo(file string, log hclog.Logger) (*hyprpanelv1.AppInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Warn(`failed to close file`, `file`, file, `err`, err)
+		}
+	}()
 
 	a := &hyprpanelv1.AppInfo{
 		DesktopFile: file,

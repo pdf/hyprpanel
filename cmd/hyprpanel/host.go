@@ -61,10 +61,7 @@ func (h *host) Exec(action *hyprpanelv1.AppInfo_Action) error {
 		c    string
 		args []string
 	)
-	if h.cfg.LogSubprocessesToJournal {
-		c = `systemd-cat`
-		args = append(h.cfg.LaunchWrapper, action.Exec...)
-	} else if len(h.cfg.LaunchWrapper) == 0 {
+	if len(h.cfg.LaunchWrapper) == 0 {
 		c = h.cfg.LaunchWrapper[0]
 		args = append(h.cfg.LaunchWrapper[1:], action.Exec...)
 	} else {
@@ -73,11 +70,6 @@ func (h *host) Exec(action *hyprpanelv1.AppInfo_Action) error {
 	}
 	h.log.Debug(`Executing command`, `cmd`, c, `args`, args)
 	cmd := exec.Command(c, args...)
-	if !h.cfg.LogSubprocessesToJournal {
-		cmd.Stdin = os.Stdin
-		cmd.Stdin = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -216,7 +208,9 @@ func (h *host) runPanel(clientPath string, layerShellPath string, prevPreload st
 			if err := os.MkdirAll(socketDir, 0o750); err != nil && err != os.ErrExist {
 				h.log.Warn(`Could not create socket dir`, `path`, socketDir, `err`, err)
 			} else {
-				os.Setenv(plugin.EnvUnixSocketDir, socketDir)
+				if err := os.Setenv(plugin.EnvUnixSocketDir, socketDir); err != nil {
+					h.log.Warn(`Could not set socket dir`, `env`, plugin.EnvUnixSocketDir, `path`, socketDir, `err`, err)
+				}
 			}
 		}
 	}
@@ -230,12 +224,16 @@ func (h *host) runPanel(clientPath string, layerShellPath string, prevPreload st
 		GRPCBrokerMultiplex: true,
 	})
 
-	os.Setenv(`LD_PRELOAD`, layerShellPath)
+	if err := os.Setenv(`LD_PRELOAD`, layerShellPath); err != nil {
+		return nil, nil, fmt.Errorf(`failed to set LD_PRELOAD: %w`, err)
+	}
 	rpcClient, err := client.Client()
 	if err != nil {
 		return nil, nil, fmt.Errorf(`failed initializing client: %w`, err)
 	}
-	os.Setenv(`LD_PRELOAD`, prevPreload)
+	if err := os.Setenv(`LD_PRELOAD`, prevPreload); err != nil {
+		return nil, nil, fmt.Errorf(`failed to restore LD_PRELOAD: %w`, err)
+	}
 
 	raw, err := rpcClient.Dispense(panelplugin.PanelPluginName)
 	if err != nil {
@@ -431,14 +429,22 @@ func (h *host) run() error {
 		return fmt.Errorf("DBUS connection failed: %w", err)
 	}
 	if h.dbus != nil {
-		defer h.dbus.Close()
+		defer func() {
+			if err := h.dbus.Close(); err != nil {
+				h.log.Error(`Failed to close dbus client`, `err`, err)
+			}
+		}()
 	}
 
 	if err := h.connectAudio(); err != nil {
 		return fmt.Errorf("audio connection failed: %w", err)
 	}
 	if h.audio != nil {
-		defer h.audio.Close()
+		defer func() {
+			if err := h.audio.Close(); err != nil {
+				h.log.Error(`Failed to close audio client`, `err`, err)
+			}
+		}()
 	}
 
 	prevPreload := os.Getenv(`LD_PRELOAD`)
@@ -486,7 +492,9 @@ func (h *host) run() error {
 }
 
 func (h *host) Close() {
-	h.apps.Close()
+	if err := h.apps.Close(); err != nil {
+		h.log.Error(`Failed to close app cache`, `err`, err)
+	}
 	close(h.quitCh)
 }
 

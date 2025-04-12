@@ -29,7 +29,11 @@ func Load(filePath string) (*configv1.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	b, err := io.ReadAll(f)
 	if err != nil {
@@ -43,5 +47,4 @@ func Load(filePath string) (*configv1.Config, error) {
 	}
 
 	return c, nil
-
 }

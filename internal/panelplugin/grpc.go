@@ -58,7 +58,7 @@ func (c *PanelGRPCClient) Context() context.Context {
 // Close implementation.
 func (c *PanelGRPCClient) Close() {
 	defer c.server.Stop()
-	c.client.Close(context.Background(), &hyprpanelv1.PanelServiceCloseRequest{})
+	_, _ = c.client.Close(context.Background(), &hyprpanelv1.PanelServiceCloseRequest{})
 }
 
 // PanelGRPCServer panel plugin server implementation.

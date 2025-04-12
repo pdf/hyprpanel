@@ -141,7 +141,11 @@ func main() {
 		log.Error(`Failed initializaing filesystem watcher`, `err`, err)
 		os.Exit(1)
 	}
-	defer watcher.Close()
+	defer func() {
+		if err := watcher.Close(); err != nil {
+			log.Error(`Failed closing filesystem watcher`, `err`, err)
+		}
+	}()
 
 	go func() {
 		for {

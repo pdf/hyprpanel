@@ -191,7 +191,7 @@ func createIcon(icon string, size int, symbolic bool, fallbacks []string, search
 		return nil, fmt.Errorf("could not convert icon to image: %s", icon)
 	}
 	var image gtk.Image
-	imageWidget.Widget.Cast(&image)
+	imageWidget.Cast(&image)
 	image.SetPixelSize(size)
 	return &image, nil
 }
@@ -287,7 +287,11 @@ func memKb(pid int) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Warn(`failed to close file`, `err`, err)
+		}
+	}()
 	s := bufio.NewScanner(f)
 	for s.Scan() {
 		if strings.HasPrefix(s.Text(), `VmRSS:`) {

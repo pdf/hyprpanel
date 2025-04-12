@@ -58,7 +58,7 @@ type panel struct {
 func (p *panel) Init(host panelplugin.Host, id string, loglevel configv1.LogLevel, cfg *configv1.Panel, stylesheet []byte) error {
 	defer close(p.readyCh)
 	log.SetLevel(hclog.Level(loglevel))
-	p.api.host = host
+	p.host = host
 	p.id = id
 	p.panelCfg = cfg
 	p.stylesheet = stylesheet

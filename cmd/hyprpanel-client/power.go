@@ -53,7 +53,10 @@ type power struct {
 }
 
 func writeTooltip(evt *eventv1.PowerChangeValue, tooltip *strings.Builder) {
-	tooltip.WriteString(fmt.Sprintf("<span weight=\"bold\">%d%%</span> ", evt.Percentage))
+	_, err := fmt.Fprintf(tooltip, "<span weight=\"bold\">%d%%</span> ", evt.Percentage)
+	if err != nil {
+		return
+	}
 	if evt.Vendor != `` {
 		tooltip.WriteString(evt.Vendor)
 		tooltip.WriteString(` `)

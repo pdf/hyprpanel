@@ -489,7 +489,9 @@ func New(cfg *configv1.Config_Audio, logger hclog.Logger) (*Client, <-chan *even
 	}
 
 	if err := c.init(); err != nil {
-		c.conn.Close()
+		if err := c.conn.Close(); err != nil {
+			c.log.Error(`failed closing connection`, `err`, err)
+		}
 		return nil, nil, err
 	}
 

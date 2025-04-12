@@ -58,6 +58,20 @@ Add the following to your `hyprland.conf` (assuming that `hyprpanel` is availabl
 exec-once = hyprpanel
 ```
 
+Alternatively if you're using uwsm, launch using the app wrapper:
+
+```
+exec-once = uwsm app -- hyprpanel
+```
+
+And if you'd like applications started from the taskbar to be launched under the session, add the option:
+
+```json
+"launch_wrapper": ["uwsm", "app", "--"]
+```
+
+to the top-level config for hyprpanel (see below for more details).
+
 ## Configuration
 
 On first run, hyprpanel will create a default configuration file at:

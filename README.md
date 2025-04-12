@@ -26,7 +26,7 @@ This project is published in the Arch AUR as `hyprpanel-bin` or `hyprpanel`, ins
 This project depends on (required):
 - gtk4
 - gtk4-layer-shell
-- Hyprland (version must be >= [5920c6a](https://github.com/hyprwm/Hyprland/commit/5920c6a6b8d059413377f0cb25f3dfb1dc8c4201))
+- Hyprland (version must be >= v0.42.0)
 
 Optional dependencies (required for default configuration):
 - systemd
@@ -68,54 +68,27 @@ You may review the current default configuration at [config/default.json](config
 
 JSON is not my first choice for a human-writable config format, but due to internal protobuf usage this was by far the least painful format to implement.
 
-For details on the configuration options, please see the [Configuration Reference](https://github.com/pdf/hyprpanel/wiki/Config) in the wiki.
+Global configuration options are documented [here](proto/doc/hyprpanel/config/v1/doc.md#hyprpanel-config-v1-Config).
 
 ## Panels
 
 Multiple panels are supported, if that's your thing.
 
+[Config Options](proto/doc/hyprpanel/config/v1/doc.md#hyprpanel-config-v1-Panel)
+
 ## Modules
 
 Each panel is composed of modules.
 
-### Pager
-
-The pager module displays a stylized preview of your workspace contents.
-
-#### Actions
-
-- Left-click switches to workspace.
-- Scroll-wheel switches between workspaces.
-
-### Taskbar
-
-The taskbar module displays an icon-only representation of running tasks, and optionally displays pinned launchers.
-
-#### Actions
-
-- Left-click launches a pinned application if it is not running. Focuses the application if it is running.
-- Middle-click launches a new instance of the application (if supported).
-- Right-click displays the application context-menu.
-- Scroll-wheel cycles focus between application windows when grouped tasks is enabled.
-
-### Systray
-
-The systray module implements the StatusNotifierItem spec.
-
-Some modules (where noted) support embedding in the systray.
-
-> [!NOTE]
-> The hyprpanel SNI implementation does not play well with others: hyprpanel does not support registering additional StatusNotifierHosts, and will fail to start if it can't own the bus. So if you use this module hyprpanel *must* be the only SNI implementation on your desktop.
->
-> To disable systray support, set the config option `dbus.systray.enabled` to `false`, and remove the `systray` module from all panels.
->
-> If you need xembed support, you can try `xembedsniproxy` from the KDE project, though expect some artifical delays as that project expects to communicate directly with the KDE SNI implementation.
+The complete list of available modules is available [here](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-Module)
 
 ### Audio
 
 The audio module displays the current audio volume level as an icon.
 
 This module supports embedding in systray.
+
+[Config Options](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-Audio)
 
 #### Actions
 
@@ -124,31 +97,21 @@ This module supports embedding in systray.
 - Right-click mutes the default output device.
 - Scroll-wheel adjusts default output volume. 
 
-### Power
-
-The power module displays the current battery level as an icon.
-
-This modules supports embedding in systray.
-
-#### Actions
-
-- Scroll-wheel adjusts display brightness. 
-
 ### Clock
 
 The clock module displays the current time/date. You may also specify a number of secondary regions to display via tooltip.
+
+[Config Options](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-Clock)
 
 #### Actions
 
 - Left-click to display a basic calendar.
 
-### Session
+### Hud
 
-The session module provides a basic session management screen.
+Displays heads-up notifications for hardware events (e.g. volume, display brightness changes, etc)
 
-#### Actions
-
-- Left-click to display session management screen.
+[Config Options](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-Hud)
 
 ### Notifications
 
@@ -159,6 +122,8 @@ Displays system notifications.
 >
 > To disable notifications support, set the config option `dbus.notifications.enabled` to `false`, and remove the `notifications` module from all panels.
 
+[Config Options](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-Notifications)
+
 #### Actions
 
 On notifications:
@@ -166,13 +131,72 @@ On notifications:
 - Left-click on notifications that include a default action will execute that action and optionally focus the sending application if supported by the notification.
 - Middle-click closes the notification.
 
-### Hud
+### Pager
 
-Displays heads-up notifications for hardware events (e.g. volume, display brightness changes, etc)
+The pager module displays a stylized preview of your workspace contents.
+
+[Config Options](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-Pager)
+
+#### Actions
+
+- Left-click switches to workspace.
+- Scroll-wheel switches between workspaces.
+
+### Power
+
+The power module displays the current battery level as an icon.
+
+This modules supports embedding in systray.
+
+[Config Options](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-Power)
+
+#### Actions
+
+- Scroll-wheel adjusts display brightness. 
+
+### Session
+
+The session module provides a basic session management screen.
+
+[Config Options](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-Session)
+
+#### Actions
+
+- Left-click to display session management screen.
 
 ### Spacer
 
 The spacer module simply adds empty space between modules.
+
+[Config Options](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-Spacer)
+
+### Systray
+
+The systray module implements the StatusNotifierItem spec.
+
+Some modules ([where noted](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-SystrayModule)) support embedding in the systray.
+
+> [!NOTE]
+> The hyprpanel SNI implementation does not play well with others: hyprpanel does not support registering additional StatusNotifierHosts, and will fail to start if it can't own the bus. So if you use this module hyprpanel *must* be the only SNI implementation on your desktop.
+>
+> To disable systray support, set the config option `dbus.systray.enabled` to `false`, and remove the `systray` module from all panels.
+>
+> If you need xembed support, you can try `xembedsniproxy` from the KDE project, though expect some artifical delays as that project expects to communicate directly with the KDE SNI implementation.
+
+[Config Options](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-Systray)
+
+### Taskbar
+
+The taskbar module displays an icon-only representation of running tasks, and optionally displays pinned launchers.
+
+[Config Options](proto/doc/hyprpanel/module/v1/doc.md#hyprpanel-module-v1-Taskbar)
+
+#### Actions
+
+- Left-click launches a pinned application if it is not running. Focuses the application if it is running.
+- Middle-click launches a new instance of the application (if supported).
+- Right-click displays the application context-menu.
+- Scroll-wheel cycles focus between application windows when grouped tasks is enabled.
 
 ## Global keybinds
 

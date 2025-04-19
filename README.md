@@ -214,7 +214,8 @@ The taskbar module displays an icon-only representation of running tasks, and op
 
 ## Global keybinds
 
-Global keybinds are registered through the desktop portal, so they do not have prefixes in `hyprctl globalshortcuts`. The following keybinds are available:
+Global keybinds are registered through the desktop portal. By default they do not have prefixes in `hyprctl globalshortcuts`. The following keybinds are available:
+
 
 ```
 :com.c0dedbad.hyprpanel.audioSinkVolumeUp -> Increase the volume of the default audio output device
@@ -225,6 +226,20 @@ Global keybinds are registered through the desktop portal, so they do not have p
 :com.c0dedbad.hyprpanel.audioSourceMuteToggle -> Toggle the mute status of the default audio input device
 :com.c0dedbad.hyprpanel.brightnessUp -> Increase display brightness
 :com.c0dedbad.hyprpanel.brightnessDown -> Increase display brightness
+```
+
+However if hyprpanel is running under uwsm, they will be prefixed by the unit/process name:
+
+
+```
+hyprpanel:com.c0dedbad.hyprpanel.audioSinkVolumeDown -> Decrease the volume of the default audio output device
+hyprpanel:com.c0dedbad.hyprpanel.audioSinkMuteToggle -> Toggle the mute status of the default audio output device
+hyprpanel:com.c0dedbad.hyprpanel.audioSourceVolumeUp -> Increase the volume of the default audio input device
+hyprpanel:com.c0dedbad.hyprpanel.audioSourceVolumeDown -> Decrease the volume of the default audio input device
+hyprpanel:com.c0dedbad.hyprpanel.audioSourceMuteToggle -> Toggle the mute status of the default audio input device
+hyprpanel:com.c0dedbad.hyprpanel.brightnessUp -> Increase display brightness
+hyprpanel:com.c0dedbad.hyprpanel.brightnessDown -> Increase display brightness
+hyprpanel:com.c0dedbad.hyprpanel.audioSinkVolumeUp -> Increase the volume of the default audio output device
 ```
 
 ## Styling

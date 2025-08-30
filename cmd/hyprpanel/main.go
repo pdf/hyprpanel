@@ -18,6 +18,7 @@ import (
 	"github.com/pdf/hyprpanel/style"
 	"github.com/peterbourgon/ff/v4"
 	"github.com/peterbourgon/ff/v4/ffhelp"
+	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -28,15 +29,42 @@ const (
 	crashCount   = 3
 )
 
+func reapChildren(log hclog.Logger) {
+	// Wait for the child process to exit, this will also reap any zombie processes
+	for {
+		pid, err := unix.Wait4(-1, nil, unix.WNOHANG, nil)
+		if err != nil {
+			if errors.Is(err, unix.EINTR) {
+				continue
+			}
+			if errors.Is(err, unix.ECHILD) {
+				log.Debug(`No more child processes`)
+				break
+			}
+			log.Error(`Failed waiting for child process`, `err`, err)
+			break
+		}
+		if pid > 0 {
+			log.Debug(`Reaped child process`, `pid`, pid)
+		} else {
+			log.Debug(`No child processes to reap`)
+			break
+		}
+	}
+}
+
 func sigHandler(log hclog.Logger, h *host) {
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGUSR1, syscall.SIGINT)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGUSR1, syscall.SIGINT, syscall.SIGCHLD)
 
 	for s := range sigChan {
 		switch s {
 		case syscall.SIGTERM, syscall.SIGINT:
 			log.Warn(`Quitting`, `sig`, s.String())
-			h.Close()
+			go h.Close()
+		case syscall.SIGCHLD:
+			log.Debug(`Child process exited`, `sig`, s.String())
+			go reapChildren(log)
 		default:
 			log.Warn(`Unhandled signal`, `sig`, s.String())
 		}
@@ -70,6 +98,11 @@ func main() {
 		}
 
 		fmt.Printf("err=%v\n", err)
+		os.Exit(1)
+	}
+
+	if err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0); err != nil {
+		log.Error(`Failed setting child subreaper`, `err`, err)
 		os.Exit(1)
 	}
 

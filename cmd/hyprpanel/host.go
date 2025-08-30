@@ -61,7 +61,7 @@ func (h *host) Exec(action *hyprpanelv1.AppInfo_Action) error {
 		c    string
 		args []string
 	)
-	if len(h.cfg.LaunchWrapper) == 0 {
+	if len(h.cfg.LaunchWrapper) > 0 {
 		c = h.cfg.LaunchWrapper[0]
 		args = append(h.cfg.LaunchWrapper[1:], action.Exec...)
 	} else {

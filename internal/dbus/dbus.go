@@ -169,6 +169,7 @@ func connectDbusSession(ctx context.Context, connectInterval time.Duration) (*db
 	}
 
 	ticker := time.NewTicker(connectInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -194,6 +195,7 @@ func connectDbusSystem(ctx context.Context, connectInterval time.Duration) (*dbu
 	}
 
 	ticker := time.NewTicker(connectInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():

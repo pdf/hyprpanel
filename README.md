@@ -8,6 +8,13 @@
 
 An opinionated panel/shell for the Hyprland compositor.
 
+> [!WARNING]
+> This project is no longer maintained as I no longer use Hyprland, and the recent complete breakage of the user-facing API following the move to LUA-based everything was one breakage too many (I understand the motivatiuon, but I don't have available time to commit to chasing Hyprland's changes).
+>
+> This was a fun project, and I learned a lot from it.
+> 
+> I recommend people look at [DankMaterialShell](https://danklinux.com/) as an alternative desktop shell for tiling Wayland compositors.
+
 > [!NOTE]
 > This project was created as a holiday hackathon for my personal use only. There are almost certainly bugs, and possibly the occasional memory leak. Please don't read the code if you're easily offended 🙃.
 > 
